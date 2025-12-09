@@ -1,0 +1,8 @@
+{
+  "name": "WellnessWingman",
+  "description": "Your AI-powered nutrition and fitness companion. Track macros, log meals with photos, and get expert coaching with deep thinking reasoning.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
