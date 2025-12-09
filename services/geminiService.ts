@@ -10,7 +10,7 @@ Keep your responses concise (under 200 words), formatted with markdown for clari
 
 export const getFastResponse = async (prompt: string): Promise<string> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-lite-latest',
+    model: 'gemini-2.5-flash',
     contents: prompt,
   });
   return response.text || "I'm sorry, I couldn't process that quickly.";
@@ -18,7 +18,7 @@ export const getFastResponse = async (prompt: string): Promise<string> => {
 
 export const getDeepThinkingResponse = async (prompt: string): Promise<string> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-pro',
+    model: 'gemini-3-pro-preview',
     contents: prompt,
     config: {
       thinkingConfig: { thinkingBudget: 32768 }
@@ -31,7 +31,7 @@ export const createCoachChatSession = (isPro: boolean = false, customInstruction
   const finalInstruction = `${BASE_SYSTEM_INSTRUCTION}${customInstructions ? `\n\nSpecific User Preferences/Goals: ${customInstructions}` : ""}`;
   
   return ai.chats.create({
-    model: isPro ? 'gemini-2.5-pro' : 'gemini-2.5-flash-lite-latest',
+    model: isPro ? 'gemini-3-pro-preview' : 'gemini-2.5-flash',
     config: {
       systemInstruction: finalInstruction,
       thinkingConfig: isPro ? { thinkingBudget: 32768 } : undefined
@@ -41,7 +41,7 @@ export const createCoachChatSession = (isPro: boolean = false, customInstruction
 
 export const parseVoiceCommand = async (text: string): Promise<{ type: 'food' | 'exercise', data: any }> => {
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-lite-latest',
+    model: 'gemini-2.5-flash',
     contents: `Parse this natural language input from a user: "${text}". 
     Determine if the user is logging a food/meal or an exercise activity.
     Return JSON format.
@@ -117,56 +117,53 @@ export const lookupFoodByBarcode = async (barcode: string): Promise<Partial<Food
   };
 };
 
-export const analyzeFoodImage = async (base64Image: string): Promise<Partial<FoodEntry>> => {
+export const analyzeFoodImage = async (base64Image: string, mimeType: string): Promise<Partial<FoodEntry>> => {
+  // Use gemini-2.5-flash for multimodal inputs (image + text analysis)
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: [
-      {
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: base64Image,
-        },
-      },
-      {
-        text: "Analyze this meal image. Determine name, calories, macros (including fiber), amount, and category (Breakfast, Lunch, Dinner, or Snacks). Return as JSON.",
-      },
-    ],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          calories: { type: Type.NUMBER },
-          carbs: { type: Type.NUMBER },
-          fat: { type: Type.NUMBER },
-          protein: { type: Type.NUMBER },
-          fiber: { type: Type.NUMBER },
-          amount: { type: Type.STRING },
-          category: { 
-            type: Type.STRING,
-            description: "The meal category: 'Breakfast', 'Lunch', 'Dinner', or 'Snacks'"
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: base64Image,
           },
         },
-        required: ['name', 'calories', 'carbs', 'fat', 'protein', 'amount', 'category']
-      }
-    }
+        {
+          text: "Analyze this meal image. Determine name, calories, macros (including fiber), amount, and category (Breakfast, Lunch, Dinner, or Snacks). Return strictly valid JSON.",
+        },
+      ],
+    },
   });
 
   const rawJson = response.text;
-  const parsed = JSON.parse(rawJson || '{}');
+  
+  let parsed: any = {};
+  try {
+      // Find JSON object in response (handles markdown code blocks)
+      const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+      } else {
+          parsed = JSON.parse(rawJson);
+      }
+  } catch (e) {
+      console.error("Failed to parse image analysis JSON", e);
+      // Attempt rudimentary fallback if JSON fails
+      throw new Error("Failed to process image data. Please try again.");
+  }
   
   return {
-    name: parsed.name,
-    calories: parsed.calories,
-    amount: parsed.amount,
-    category: parsed.category,
+    name: parsed.name || 'Unknown Food',
+    calories: parsed.calories || 0,
+    amount: parsed.amount || '1 serving',
+    category: parsed.category || 'Lunch',
     macros: {
-      carbs: parsed.carbs,
-      fat: parsed.fat,
-      protein: parsed.protein,
+      carbs: parsed.carbs || 0,
+      fat: parsed.fat || 0,
+      protein: parsed.protein || 0,
       fiber: parsed.fiber || 0,
-      calories: parsed.calories
+      calories: parsed.calories || 0
     }
   };
 };
@@ -177,7 +174,7 @@ export const getRecipeRecommendations = async (remaining: MacroData, query?: str
   const prompt = `${basePrompt}${specificQuery}Suggest 3 healthy recipes. Each recipe should list title, calories, macros (including fiber), and basic steps.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-lite-latest',
+    model: 'gemini-2.5-flash',
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -209,10 +206,34 @@ export const getRecipeRecommendations = async (remaining: MacroData, query?: str
     }
   });
 
+  const normalizeStringArray = (input: any): string[] => {
+    if (!input) return [];
+    if (Array.isArray(input)) {
+        return input.flatMap(item => {
+            if (typeof item === 'string') return item;
+            if (typeof item === 'object' && item !== null) {
+                 // Handle potential object structures
+                 if ('amount' in item && 'name' in item) return `${item.amount} ${item.name}`;
+                 if ('item' in item && 'quantity' in item) return `${item.quantity} ${item.item}`;
+                 
+                 // Fallback: treat as key-value map (e.g. {"tuna": "1 can"})
+                 return Object.entries(item).map(([k, v]) => `${v} ${k}`);
+            }
+            return String(item);
+        });
+    }
+    if (typeof input === 'object') {
+        return Object.entries(input).map(([k, v]) => `${v} ${k}`);
+    }
+    return [String(input)];
+  };
+
   const rawJson = response.text;
   return JSON.parse(rawJson || '[]').map((r: any) => ({
     ...r,
     id: crypto.randomUUID(),
-    macros: { ...r.macros, calories: r.calories, fiber: r.macros.fiber || 0 }
+    macros: { ...r.macros, calories: r.calories, fiber: r.macros.fiber || 0 },
+    ingredients: normalizeStringArray(r.ingredients),
+    instructions: normalizeStringArray(r.instructions)
   }));
 };

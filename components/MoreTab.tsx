@@ -10,6 +10,7 @@ interface MoreTabProps {
 
 const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs }) => {
   const menuItems = [
+    { id: 'vision', label: 'Log with AI Vision', icon: Icons.Camera(), description: 'Identify foods and macros from a photo', color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: 'barcode', label: 'Scan Barcodes', icon: Icons.Barcode(), description: 'Identify packaged foods instantly', color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: 'goals', label: 'Adjust Your Goals', icon: Icons.Dashboard(), description: 'Change calories and macro splits', color: 'text-purple-600', bg: 'bg-purple-50' },
     { id: 'macros', label: 'Track Macros', icon: Icons.Chart(), description: 'Deep dive into your nutrition balance', color: 'text-green-600', bg: 'bg-green-50' },

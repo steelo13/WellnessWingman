@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { MacroData, FoodEntry, ExerciseEntry } from '../types';
@@ -12,9 +13,10 @@ interface DashboardProps {
   onSync: () => void;
   onCameraClick: () => void;
   isNetCarbs: boolean;
+  onResetSteps: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs }) => {
+const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs, onResetSteps }) => {
   const current = entries.reduce((acc, curr) => ({
     calories: acc.calories + curr.calories,
     carbs: acc.carbs + (isNetCarbs ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
@@ -121,7 +123,15 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, 
         </div>
 
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-gray-800 mb-4">Steps & Activity</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-gray-800">Steps & Activity</h3>
+            <button 
+              onClick={onResetSteps}
+              className="text-[10px] text-gray-400 hover:text-red-500 font-bold bg-gray-50 px-2 py-1 rounded-lg transition"
+            >
+              RESET
+            </button>
+          </div>
           <div className="flex flex-col items-center justify-center py-4">
             <p className="text-4xl font-black text-blue-600 transition-all duration-300">
               {steps.toLocaleString()}

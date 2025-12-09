@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FoodEntry, ExerciseEntry, MacroData, AppView, ChatMessage, Recipe } from './types';
 import { Icons, COLORS } from './constants';
 import Dashboard from './components/Dashboard';
@@ -38,8 +38,11 @@ const App: React.FC = () => {
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
-  const [steps, setSteps] = useState(3241);
+  
+  // Step tracking state
+  const [steps, setSteps] = useState(0);
   const [isSyncingSteps, setIsSyncingSteps] = useState(false);
+  
   const [userGoal, setUserGoal] = useState<MacroData>(DEFAULT_GOAL);
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -64,6 +67,47 @@ const App: React.FC = () => {
   const [exName, setExName] = useState('');
   const [exDuration, setExDuration] = useState('');
   const [exCalories, setExCalories] = useState('');
+
+  // Step detection refs
+  const lastStepTime = useRef(0);
+
+  // Define handleMotion via useCallback so it can be added/removed reliably
+  const handleMotion = useCallback((event: any) => {
+    // accelerationIncludingGravity provides the most reliable step data across devices
+    const acc = event.accelerationIncludingGravity;
+    if (!acc) return;
+
+    const { x, y, z } = acc;
+    // Calculate magnitude of the acceleration vector
+    const magnitude = Math.sqrt(x * x + y * y + z * z);
+
+    // Threshold adjusted to 13.5 m/s^2 (Gravity ~9.8).
+    // This reduces false positives from sitting/handling the phone vs walking.
+    if (magnitude > 13.5) {
+      const now = Date.now();
+      // Debounce steps to prevent double counting (max 2 steps/sec roughly)
+      if (now - lastStepTime.current > 500) {
+        setSteps(prev => prev + 1);
+        lastStepTime.current = now;
+      }
+    }
+  }, []);
+
+  // Initialize listeners
+  useEffect(() => {
+    // Check if we can add listener immediately (non-iOS or previously granted)
+    if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+       // We try to add it. On iOS 13+ this might do nothing without a user gesture request first,
+       // which is handled in handleSyncSteps.
+       window.addEventListener('devicemotion', handleMotion);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && 'DeviceMotionEvent' in window) {
+        window.removeEventListener('devicemotion', handleMotion);
+      }
+    };
+  }, [handleMotion]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -231,10 +275,38 @@ const App: React.FC = () => {
 
   const handleSyncSteps = () => {
     setIsSyncingSteps(true);
+    
+    // 1. Hardware Permission Request (iOS 13+)
+    // This is the critical "Sync" action for iOS devices to allow accelerometer access
+    if (typeof (DeviceMotionEvent as any) !== 'undefined' && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+      (DeviceMotionEvent as any).requestPermission()
+        .then((response: string) => {
+          if (response === 'granted') {
+             // Re-bind to ensure it is active
+             window.removeEventListener('devicemotion', handleMotion);
+             window.addEventListener('devicemotion', handleMotion);
+          } else {
+             alert("Permission is required to sync real-time steps.");
+          }
+        })
+        .catch(console.error);
+    } else {
+      // For non-iOS, just re-ensure the listener is active
+      window.removeEventListener('devicemotion', handleMotion);
+      window.addEventListener('devicemotion', handleMotion);
+    }
+
+    // 2. Simulate Cloud Sync
     setTimeout(() => {
-      setSteps(prev => prev + Math.floor(Math.random() * 2000) + 1000);
+      // Simulate fetching 'missed' steps from a wearable or background process
+      const syncedSteps = Math.floor(Math.random() * 200) + 50; 
+      setSteps(prev => prev + syncedSteps);
       setIsSyncingSteps(false);
     }, 1500);
+  };
+
+  const handleResetSteps = () => {
+    setSteps(0);
   };
 
   const addEntry = (entry: FoodEntry) => {
@@ -307,9 +379,13 @@ const App: React.FC = () => {
     setIsAiThinking(true);
     const reader = new FileReader();
     reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
+      const resultStr = reader.result as string;
+      // Extract mime type dynamically (e.g. data:image/png;base64,...)
+      const mimeType = resultStr.split(';')[0].split(':')[1];
+      const base64 = resultStr.split(',')[1];
+      
       try {
-        const result = await analyzeFoodImage(base64);
+        const result = await analyzeFoodImage(base64, mimeType);
         const newEntry: FoodEntry = {
           id: crypto.randomUUID(),
           name: result.name || 'Analyzed Meal',
@@ -323,7 +399,7 @@ const App: React.FC = () => {
         setActiveView(AppView.DIARY);
       } catch (err) {
         console.error("Image analysis error:", err);
-        alert("Wellness Wingman had trouble seeing that meal. Try again!");
+        alert("Wellness Wingman had trouble seeing that meal. Please try again or check your connection.");
       } finally {
         setIsAiThinking(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -397,6 +473,7 @@ const App: React.FC = () => {
             onSync={handleSyncSteps} 
             onCameraClick={() => fileInputRef.current?.click()}
             isNetCarbs={isNetCarbsMode}
+            onResetSteps={handleResetSteps}
           />
         );
       case AppView.DIARY:
@@ -608,6 +685,7 @@ const App: React.FC = () => {
               else if (id === 'barcode') setActiveView(AppView.SCANNER);
               else if (id === 'planner') setActiveView(AppView.MEAL_PLANNER);
               else if (id === 'macros') setActiveView(AppView.MACRO_TRACKER);
+              else if (id === 'vision') fileInputRef.current?.click();
             }} 
           />
         );
