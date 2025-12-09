@@ -716,9 +716,7 @@ const App: React.FC = () => {
               UPGRADE
             </button>
           )}
-          <div className="w-10 h-10 rounded-full bg-blue-100 overflow-hidden border-2 border-white shadow-sm">
-            <img src="https://picsum.photos/100" alt="User" />
-          </div>
+          <img src="https://placehold.co/80x80/0066FF/ffffff?text=WW" alt="WellnessWingman Logo" className="h-10 w-10 object-contain rounded-lg" />
         </div>
       </header>
 

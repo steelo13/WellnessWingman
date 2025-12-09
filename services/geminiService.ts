@@ -119,53 +119,60 @@ export const lookupFoodByBarcode = async (barcode: string): Promise<Partial<Food
 
 export const analyzeFoodImage = async (base64Image: string, mimeType: string): Promise<Partial<FoodEntry>> => {
   // Use gemini-2.5-flash for multimodal inputs (image + text analysis)
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: base64Image,
-          },
-        },
-        {
-          text: "Analyze this meal image. Determine name, calories, macros (including fiber), amount, and category (Breakfast, Lunch, Dinner, or Snacks). Return strictly valid JSON.",
-        },
-      ],
-    },
-  });
-
-  const rawJson = response.text;
-  
-  let parsed: any = {};
   try {
-      // Find JSON object in response (handles markdown code blocks)
-      const jsonMatch = rawJson.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-      } else {
-          parsed = JSON.parse(rawJson);
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Image,
+            },
+          },
+          {
+            text: "Analyze this meal image. Identify the food name, estimated calories, macros (carbs, fat, protein, fiber), serving amount, and meal category (Breakfast, Lunch, Dinner, or Snacks).",
+          },
+        ],
+      },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            calories: { type: Type.NUMBER },
+            amount: { type: Type.STRING },
+            category: { type: Type.STRING, enum: ['Breakfast', 'Lunch', 'Dinner', 'Snacks'] },
+            carbs: { type: Type.NUMBER },
+            fat: { type: Type.NUMBER },
+            protein: { type: Type.NUMBER },
+            fiber: { type: Type.NUMBER },
+          },
+          required: ['name', 'calories', 'amount', 'category', 'carbs', 'fat', 'protein']
+        }
       }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    
+    return {
+      name: parsed.name || 'Analyzed Food',
+      calories: parsed.calories || 0,
+      amount: parsed.amount || '1 serving',
+      category: parsed.category || 'Lunch',
+      macros: {
+        carbs: parsed.carbs || 0,
+        fat: parsed.fat || 0,
+        protein: parsed.protein || 0,
+        fiber: parsed.fiber || 0,
+        calories: parsed.calories || 0
+      }
+    };
   } catch (e) {
-      console.error("Failed to parse image analysis JSON", e);
-      // Attempt rudimentary fallback if JSON fails
-      throw new Error("Failed to process image data. Please try again.");
+    console.error("AI Vision Error:", e);
+    throw new Error("Failed to analyze image. Please ensure the image is clear and try again.");
   }
-  
-  return {
-    name: parsed.name || 'Unknown Food',
-    calories: parsed.calories || 0,
-    amount: parsed.amount || '1 serving',
-    category: parsed.category || 'Lunch',
-    macros: {
-      carbs: parsed.carbs || 0,
-      fat: parsed.fat || 0,
-      protein: parsed.protein || 0,
-      fiber: parsed.fiber || 0,
-      calories: parsed.calories || 0
-    }
-  };
 };
 
 export const getRecipeRecommendations = async (remaining: MacroData, query?: string): Promise<Recipe[]> => {
