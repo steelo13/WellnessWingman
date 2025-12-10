@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Recipe } from '../types';
 import { Icons } from '../constants';
@@ -118,7 +117,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ recipes, onRemove, onClos
 
       {/* Recipe Detail Modal */}
       {selectedRecipe && (
-        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto animate-in slide-in-from-bottom duration-300 custom-scrollbar overscroll-none">
           <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-md z-10">
              <button onClick={() => setSelectedRecipe(null)} className="p-2 -ml-2 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>

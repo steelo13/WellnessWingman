@@ -696,7 +696,7 @@ const App: React.FC = () => {
              </div>
              <div 
                 ref={chatScrollRef}
-                className="flex-1 overflow-y-auto px-4 space-y-4 scroll-smooth"
+                className="flex-1 overflow-y-auto px-4 space-y-4 scroll-smooth custom-scrollbar overscroll-none"
               >
                 {messages.map(msg => (
                   <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -798,7 +798,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth custom-scrollbar">
+      <main className="flex-1 overflow-y-auto overscroll-none scroll-smooth custom-scrollbar">
         {renderView()}
       </main>
 

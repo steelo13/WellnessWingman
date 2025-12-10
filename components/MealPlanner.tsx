@@ -141,7 +141,7 @@ const MealPlanner: React.FC<MealPlannerProps> = ({ savedRecipes, onClose }) => {
               </button>
             </div>
             
-            <div className="max-h-[50vh] overflow-y-auto space-y-3 no-scrollbar">
+            <div className="max-h-[50vh] overflow-y-auto space-y-3 custom-scrollbar overscroll-none">
               {savedRecipes.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <p className="text-sm font-medium">No saved recipes found.</p>
