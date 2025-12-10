@@ -15,12 +15,14 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
   useEffect(() => {
     let stream: MediaStream | null = null;
     let isMounted = true;
+    let initTimeout: any;
 
     const startCamera = async () => {
       try {
         setIsLoading(true);
         setError('');
 
+        // Constraints: prefer back camera
         const constraints: MediaStreamConstraints = {
           audio: false,
           video: {
@@ -36,11 +38,11 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
           }
         } catch (err) {
           console.warn("Environment camera failed, trying fallback", err);
-          // Fallback to basic constraints (might trigger user facing camera if env not available)
           try {
+             // Fallback to any video camera
              stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
           } catch(fallbackErr) {
-             throw new Error("Could not access any camera.");
+             throw new Error("Could not access any camera. Please ensure permissions are granted.");
           }
         }
 
@@ -50,28 +52,39 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
         }
 
         if (videoRef.current && stream) {
-          videoRef.current.srcObject = stream;
-          // CRITICAL: playsinline required for iOS to render video inline (not fullscreen)
+          // IMPORTANT: Set properties before srcObject for Mobile Safari/Chrome quirks
+          videoRef.current.muted = true;
           videoRef.current.setAttribute('playsinline', 'true');
+          videoRef.current.srcObject = stream;
           
-          // Wait a moment for the video to be ready before playing
-          videoRef.current.onloadedmetadata = async () => {
-             if (videoRef.current) {
-                try {
-                   await videoRef.current.play();
-                   setIsLoading(false);
-                } catch (e) {
-                   console.error("Auto-play failed", e);
-                   setError("Tap to start camera");
-                   setIsLoading(false);
-                }
+          // Safety timeout: If video doesn't start in 3s, remove loader so user isn't stuck
+          initTimeout = setTimeout(() => {
+             if (isMounted) setIsLoading(false);
+          }, 3000);
+
+          const playVideo = async () => {
+             if (!videoRef.current) return;
+             try {
+                await videoRef.current.play();
+                if (isMounted) setIsLoading(false);
+             } catch (e) {
+                console.warn("Play attempt failed", e);
+                // If play fails (e.g. low power mode), we still remove loader via the timeout
              }
           };
+
+          // Try playing when metadata loads
+          videoRef.current.onloadedmetadata = () => {
+             playVideo();
+          };
+          
+          // Also try immediately
+          playVideo();
         }
       } catch (err: any) {
         console.error("Camera access error:", err);
         if (isMounted) {
-          setError("Could not access camera. Please check permissions.");
+          setError(err.message || "Camera error");
           setIsLoading(false);
         }
       }
@@ -81,6 +94,7 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
 
     return () => {
       isMounted = false;
+      if (initTimeout) clearTimeout(initTimeout);
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -92,6 +106,8 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
@@ -125,18 +141,21 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
 
        {/* Video Stream */}
        <div className="flex-1 relative overflow-hidden bg-black flex items-center justify-center">
+         {/* Loader overlay */}
          {isLoading && !error && (
-           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white/50">
+           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white/50 bg-black/50 pointer-events-none">
              <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
              <p className="text-sm font-medium">Starting Camera...</p>
            </div>
          )}
+         
          <video 
            ref={videoRef} 
            autoPlay 
            playsInline 
            muted 
            className="absolute inset-0 w-full h-full object-cover"
+           style={{ display: 'block' }} 
          />
        </div>
 
