@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MacroData, Recipe } from '../types';
 import { getRecipeRecommendations } from '../services/geminiService';
@@ -28,6 +29,26 @@ const RecipeExplorer: React.FC<RecipeExplorerProps> = ({ remainingMacros, savedR
       alert("Wellness Wingman couldn't cook up ideas right now. Try again later!");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleShare = async (recipe: Recipe) => {
+    const shareData = {
+      title: `Healthy Recipe: ${recipe.title}`,
+      text: `I found this great recipe on WellnessWingman!\n\n${recipe.title}\n${recipe.calories} kcal | ${recipe.macros.protein}g Protein\n\n${recipe.description}`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+         const text = `${shareData.title}\n\n${shareData.text}\n\nIngredients:\n${recipe.ingredients.join(', ')}\n\nInstructions:\n${recipe.instructions.join('\n')}`;
+         await navigator.clipboard.writeText(text);
+         alert('Recipe details copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Share failed:', err);
     }
   };
 
@@ -159,13 +180,21 @@ const RecipeExplorer: React.FC<RecipeExplorerProps> = ({ remainingMacros, savedR
              <button onClick={() => setSelectedRecipe(null)} className="p-2 -ml-2 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
              </button>
-             <h2 className="text-lg font-bold truncate px-4">{selectedRecipe.title}</h2>
-             <button 
-                onClick={(e) => { e.stopPropagation(); onToggleSave(selectedRecipe); }}
-                className="p-2 transition active:scale-90"
-             >
-                {Icons.Heart(isSaved(selectedRecipe.id))}
-             </button>
+             <h2 className="text-lg font-bold truncate px-4 flex-1 text-center">{selectedRecipe.title}</h2>
+             <div className="flex items-center gap-1">
+               <button 
+                  onClick={(e) => { e.stopPropagation(); handleShare(selectedRecipe); }}
+                  className="p-2 text-blue-600 transition active:scale-90"
+               >
+                  {Icons.Share()}
+               </button>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); onToggleSave(selectedRecipe); }}
+                  className="p-2 transition active:scale-90"
+               >
+                  {Icons.Heart(isSaved(selectedRecipe.id))}
+               </button>
+             </div>
           </header>
           <div className="px-6 pb-24 pt-4 space-y-6">
             <div className="space-y-4">

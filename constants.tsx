@@ -47,5 +47,17 @@ export const Icons = {
   ),
   Leaf: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20a7 7 0 0 1-7-7c0-2.3 1.4-4.4 3.5-5.3.6-.3 1.2-.5 1.9-.6a4 4 0 0 0 4.1 3.5 4 4 0 0 0 3.5-4.1c-.1-.7-.3-1.3-.6-1.9C15.4 2.6 13.3 4 11 4a7 7 0 0 0-7 7"/></svg>
+  ),
+  Share: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+  ),
+  Droplet: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+  ),
+  Glass: (filled: boolean = false) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={filled ? "text-blue-500" : "text-blue-200"}><path d="M18 4H6v13a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V4Z"/><line x1="6" y1="8" x2="18" y2="8"/></svg>
+  ),
+  Star: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
   )
 };

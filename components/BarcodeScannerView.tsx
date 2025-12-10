@@ -16,16 +16,16 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
     // @ts-ignore
     const Html5Qrcode = window.Html5Qrcode;
     
-    // Cleanup previous instance if exists (safety check)
+    // Cleanup previous instance if exists
     if (scannerRef.current) {
         try { scannerRef.current.clear(); } catch(e){}
     }
 
-    // Initialize without verbose mode
     const html5QrCode = new Html5Qrcode("reader", false);
     scannerRef.current = html5QrCode;
 
-    // Config: qrbox removed to allow full-screen scanning and prevent mobile layout miscalculations
+    // Config: Removed qrbox to allow full video feed rendering. 
+    // Specifying a qrbox on mobile often leads to miscalculations and black screens.
     const config = { 
       fps: 10, 
       videoConstraints: {
@@ -37,7 +37,6 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
     const handleSuccess = (decodedText: string) => {
       if (isUnmounting.current) return;
       
-      // Stop scanning immediately upon success
       html5QrCode.stop().then(() => {
         if(!isUnmounting.current) {
             html5QrCode.clear();
@@ -50,12 +49,11 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
     };
 
     const handleError = (errorMessage: string) => {
-        // Ignored to prevent console spam for frames without QR codes
+        // quiet
     };
 
     const startScanner = async () => {
       try {
-        // Direct attempt with environment camera
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
@@ -63,11 +61,11 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
           handleError
         );
 
-        // Mobile Fix: Manually ensure video element plays inline and is visible
+        // CRITICAL FIX: Manually force playsinline on the video element created by the library.
+        // This prevents the black screen / full-screen player issue on iOS.
         const videoElement = document.querySelector('#reader video') as HTMLVideoElement;
         if (videoElement) {
            videoElement.setAttribute('playsinline', 'true');
-           // videoElement.play().catch(() => {}); // Library handles play, but we ensure attr
         }
 
       } catch (err: any) {
@@ -75,7 +73,6 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
         
         if (isUnmounting.current) return;
 
-        // Fallback: Try "user" camera
         try {
            await html5QrCode.start(
             { facingMode: "user" },
@@ -86,7 +83,7 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
         } catch (err2: any) {
            console.error("All camera attempts failed:", err2);
            if (!isUnmounting.current) {
-             setErrorMsg("Camera error: " + (err2?.message || "Could not start video source."));
+             setErrorMsg("Camera error: " + (err2?.message || "Could not start video."));
            }
         }
       }
@@ -119,11 +116,10 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
         </button>
       </div>
       
-      {/* Container must have explicit size for video to fill */}
+      {/* Container - Ensure it has a dark background and correct overflow */}
       <div className="relative w-full max-w-sm aspect-square bg-black rounded-[32px] overflow-hidden shadow-2xl border border-white/10">
         <div id="reader" className="w-full h-full relative z-10 bg-black"></div>
         
-        {/* Error Display */}
         {errorMsg && (
             <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/80 z-30 text-center">
                 <p className="text-white font-bold">{errorMsg}</p>

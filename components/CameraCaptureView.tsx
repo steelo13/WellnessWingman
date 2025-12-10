@@ -19,31 +19,28 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
     const startCamera = async () => {
       try {
         setIsLoading(true);
-        // Robust constraint handling for mobile
-        const constraints = {
+        setError('');
+
+        const constraints: MediaStreamConstraints = {
           audio: false,
-          video: { 
+          video: {
             facingMode: 'environment'
           }
         };
 
         try {
-          // Check if API exists (it might not on insecure HTTP)
           if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-             stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
           } else {
-             throw new Error("Camera API not available");
+            throw new Error("Camera API not available");
           }
         } catch (err) {
-          console.warn("Environment camera failed or API issue, trying fallback", err);
-          // Fallback to basic constraint or user camera
+          console.warn("Environment camera failed, trying fallback", err);
+          // Fallback to basic constraints (might trigger user facing camera if env not available)
           try {
-             stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: false, 
-                video: true 
-             });
-          } catch(e) {
-             throw err; // Throw original error if fallback fails
+             stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+          } catch(fallbackErr) {
+             throw new Error("Could not access any camera.");
           }
         }
 
@@ -54,20 +51,27 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
 
         if (videoRef.current && stream) {
           videoRef.current.srcObject = stream;
-          // IMPORTANT: Explicitly set playsinline property for iOS/Mobile support
+          // CRITICAL: playsinline required for iOS to render video inline (not fullscreen)
           videoRef.current.setAttribute('playsinline', 'true');
           
-          try {
-            await videoRef.current.play();
-          } catch (e) {
-            console.error("Auto-play failed:", e);
-          }
-          setIsLoading(false);
+          // Wait a moment for the video to be ready before playing
+          videoRef.current.onloadedmetadata = async () => {
+             if (videoRef.current) {
+                try {
+                   await videoRef.current.play();
+                   setIsLoading(false);
+                } catch (e) {
+                   console.error("Auto-play failed", e);
+                   setError("Tap to start camera");
+                   setIsLoading(false);
+                }
+             }
+          };
         }
       } catch (err: any) {
         console.error("Camera access error:", err);
         if (isMounted) {
-          setError("Could not access camera. Please ensure you are on HTTPS or localhost and have granted permissions.");
+          setError("Could not access camera. Please check permissions.");
           setIsLoading(false);
         }
       }
@@ -88,21 +92,17 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Set canvas size to match actual video resolution
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Mirror if it's the user facing camera (optional, usually environment isn't mirrored)
-        // ctx.translate(canvas.width, 0);
-        // ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         try {
            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
            onCapture(dataUrl);
         } catch(e) {
-           console.error("ToDataURL failed", e);
+           console.error("Capture failed", e);
         }
       }
     }
@@ -118,7 +118,7 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
              </div>
              <p className="mb-6 font-medium">{error}</p>
-             <button onClick={onClose} className="bg-white text-black px-6 py-3 rounded-full font-bold active:scale-95 transition">Close Camera</button>
+             <button onClick={onClose} className="bg-white text-black px-6 py-3 rounded-full font-bold active:scale-95 transition">Close</button>
            </div>
          </div>
        )}
@@ -136,13 +136,7 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
            autoPlay 
            playsInline 
            muted 
-           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-           onLoadedMetadata={() => {
-              if(videoRef.current) {
-                  videoRef.current.play().catch(() => {});
-                  setIsLoading(false);
-              }
-           }}
+           className="absolute inset-0 w-full h-full object-cover"
          />
        </div>
 
@@ -163,7 +157,7 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
             <div className="w-16 h-16 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)]"></div>
           </button>
           
-          <div className="w-12 opacity-0"></div> {/* Spacer for alignment */}
+          <div className="w-12 opacity-0"></div>
        </div>
        <canvas ref={canvasRef} className="hidden" />
     </div>

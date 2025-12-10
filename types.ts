@@ -1,3 +1,4 @@
+
 export interface MacroData {
   carbs: number;
   fat: number;
@@ -51,5 +52,6 @@ export enum AppView {
   SCANNER = 'scanner',
   MEAL_PLANNER = 'meal_planner',
   MACRO_TRACKER = 'macro_tracker',
-  CAMERA = 'camera'
+  CAMERA = 'camera',
+  FAVORITES = 'favorites'
 }

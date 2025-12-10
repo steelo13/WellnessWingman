@@ -11,6 +11,7 @@ import BarcodeScannerView from './components/BarcodeScannerView';
 import MealPlanner from './components/MealPlanner';
 import MacroTracker from './components/MacroTracker';
 import CameraCaptureView from './components/CameraCaptureView';
+import FavoritesView from './components/FavoritesView';
 import { analyzeFoodImage, createCoachChatSession, parseVoiceCommand, lookupFoodByBarcode } from './services/geminiService';
 
 const DEFAULT_GOAL: MacroData = {
@@ -45,6 +46,9 @@ const App: React.FC = () => {
   const [steps, setSteps] = useState(0);
   const [isSyncingSteps, setIsSyncingSteps] = useState(false);
   
+  // Water tracking state
+  const [waterIntake, setWaterIntake] = useState(0);
+
   const [userGoal, setUserGoal] = useState<MacroData>(DEFAULT_GOAL);
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -137,6 +141,18 @@ const App: React.FC = () => {
     }
     const savedNetMode = localStorage.getItem('wellness_net_carbs_mode');
     if (savedNetMode) setIsNetCarbsMode(savedNetMode === 'true');
+
+    // Load water intake
+    const savedWater = localStorage.getItem('wellness_water_intake');
+    const savedDate = localStorage.getItem('wellness_water_date');
+    const today = new Date().toDateString();
+    
+    if (savedDate === today && savedWater) {
+      setWaterIntake(parseInt(savedWater));
+    } else {
+      setWaterIntake(0);
+      localStorage.setItem('wellness_water_date', today);
+    }
   }, []);
 
   const toggleNetCarbs = () => {
@@ -314,6 +330,19 @@ const App: React.FC = () => {
 
   const handleResetSteps = () => {
     setSteps(0);
+  };
+
+  const handleAddWater = () => {
+    const newAmount = waterIntake + 250;
+    setWaterIntake(newAmount);
+    localStorage.setItem('wellness_water_intake', newAmount.toString());
+    localStorage.setItem('wellness_water_date', new Date().toDateString());
+  };
+
+  const handleResetWater = () => {
+    setWaterIntake(0);
+    localStorage.setItem('wellness_water_intake', '0');
+    localStorage.setItem('wellness_water_date', new Date().toDateString());
   };
 
   const addEntry = (entry: FoodEntry) => {
@@ -502,6 +531,12 @@ const App: React.FC = () => {
                   onScan={handleBarcodeScanned} 
                   onClose={() => setActiveView(AppView.MORE)} 
                 />;
+      case AppView.FAVORITES:
+        return <FavoritesView 
+                  recipes={savedRecipes} 
+                  onRemove={handleToggleSaveRecipe} 
+                  onClose={() => setActiveView(AppView.MORE)} 
+               />;
       case AppView.DASHBOARD:
         return (
           <Dashboard 
@@ -514,6 +549,9 @@ const App: React.FC = () => {
             onCameraClick={() => fileInputRef.current?.click()}
             isNetCarbs={isNetCarbsMode}
             onResetSteps={handleResetSteps}
+            waterIntake={waterIntake}
+            onAddWater={handleAddWater}
+            onResetWater={handleResetWater}
           />
         );
       case AppView.DIARY:
@@ -727,6 +765,7 @@ const App: React.FC = () => {
               else if (id === 'planner') setActiveView(AppView.MEAL_PLANNER);
               else if (id === 'macros') setActiveView(AppView.MACRO_TRACKER);
               else if (id === 'vision') setActiveView(AppView.CAMERA);
+              else if (id === 'favorites') setActiveView(AppView.FAVORITES);
             }} 
           />
         );

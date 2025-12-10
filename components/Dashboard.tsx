@@ -14,9 +14,12 @@ interface DashboardProps {
   onCameraClick: () => void;
   isNetCarbs: boolean;
   onResetSteps: () => void;
+  waterIntake: number;
+  onAddWater: () => void;
+  onResetWater: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs, onResetSteps }) => {
+const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs, onResetSteps, waterIntake, onAddWater, onResetWater }) => {
   const current = entries.reduce((acc, curr) => ({
     calories: acc.calories + curr.calories,
     carbs: acc.carbs + (isNetCarbs ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
@@ -158,6 +161,38 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, 
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Water Intake */}
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-blue-500 bg-blue-50 p-1.5 rounded-lg">{Icons.Droplet()}</span> 
+            Water Intake
+          </h3>
+          <div className="text-right">
+             <p className="text-xs font-bold text-blue-500 mb-1">{waterIntake} / 2500 ml</p>
+             <button 
+              onClick={onResetWater}
+              className="text-[10px] text-gray-400 hover:text-red-500 font-bold bg-gray-50 px-2 py-1 rounded-lg transition"
+            >
+              RESET
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-between items-center px-1 mb-6 gap-2">
+           {[...Array(10)].map((_, i) => (
+             <div key={i} className="transition-transform duration-300 hover:scale-110">
+                {Icons.Glass(i < (waterIntake / 250))}
+             </div>
+           ))}
+        </div>
+        <button 
+          onClick={onAddWater}
+          className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition flex items-center justify-center gap-2"
+        >
+          {Icons.Droplet()} Add Glass (250ml)
+        </button>
       </div>
     </div>
   );

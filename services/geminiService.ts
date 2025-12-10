@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { FoodEntry, MacroData, Recipe, ExerciseEntry } from "../types";
 
@@ -182,11 +183,11 @@ export const analyzeFoodImage = async (base64Image: string, mimeType: string): P
 export const getRecipeRecommendations = async (remaining: MacroData, query?: string): Promise<Recipe[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const basePrompt = `Based on these remaining daily macros: Calories: ${remaining.calories}, Protein: ${remaining.protein}g, Carbs: ${remaining.carbs}g, Fat: ${remaining.fat}g. `;
-  const specificQuery = query ? `Specifically search for recipes matching: "${query}". ` : "Suggest 3 diverse healthy recipes that fit these macros. ";
+  const specificQuery = query ? `Specifically search for 6 recipes matching: "${query}". ` : "Suggest 6 diverse healthy recipes that fit these macros. ";
   
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: basePrompt + specificQuery + "Return a JSON array of recipes.",
+    contents: basePrompt + specificQuery + "Return a JSON array of exactly 6 recipes.",
     config: {
       responseMimeType: 'application/json',
       responseSchema: {
