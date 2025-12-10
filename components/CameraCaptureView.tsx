@@ -54,7 +54,9 @@ const CameraCaptureView: React.FC<CameraCaptureViewProps> = ({ onCapture, onClos
 
         if (videoRef.current && stream) {
           videoRef.current.srcObject = stream;
-          // IMPORTANT: Explicitly play() for mobile browsers
+          // IMPORTANT: Explicitly set playsinline property for iOS/Mobile support
+          videoRef.current.setAttribute('playsinline', 'true');
+          
           try {
             await videoRef.current.play();
           } catch (e) {

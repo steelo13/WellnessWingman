@@ -1,14 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { FoodEntry, MacroData, Recipe, ExerciseEntry } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 const BASE_SYSTEM_INSTRUCTION = `You are Wellness Wingman, an elite nutrition and fitness coach. 
 Your goal is to provide evidence-based, supportive, and highly actionable advice. 
 Help users navigate their fitness journey, explain macro distributions, suggest workout tweaks, and offer motivational boosts. 
 Keep your responses concise (under 200 words), formatted with markdown for clarity, and always maintain a professional yet friendly coach persona.`;
 
 export const getFastResponse = async (prompt: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: prompt,
@@ -17,6 +16,7 @@ export const getFastResponse = async (prompt: string): Promise<string> => {
 };
 
 export const getDeepThinkingResponse = async (prompt: string): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: prompt,
@@ -28,6 +28,7 @@ export const getDeepThinkingResponse = async (prompt: string): Promise<string> =
 };
 
 export const createCoachChatSession = (isPro: boolean = false, customInstructions: string = "") => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const finalInstruction = `${BASE_SYSTEM_INSTRUCTION}${customInstructions ? `\n\nSpecific User Preferences/Goals: ${customInstructions}` : ""}`;
   
   return ai.chats.create({
@@ -40,6 +41,7 @@ export const createCoachChatSession = (isPro: boolean = false, customInstruction
 };
 
 export const parseVoiceCommand = async (text: string): Promise<{ type: 'food' | 'exercise', data: any }> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `Parse this natural language input from a user: "${text}". 
@@ -78,6 +80,7 @@ export const parseVoiceCommand = async (text: string): Promise<{ type: 'food' | 
 };
 
 export const lookupFoodByBarcode = async (barcode: string): Promise<Partial<FoodEntry>> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: `Identify the food product with barcode "${barcode}" and provide its nutritional data (Calories, Carbs, Fat, Protein, Fiber) per serving. Use search to find accurate data. 
@@ -120,6 +123,7 @@ export const lookupFoodByBarcode = async (barcode: string): Promise<Partial<Food
 export const analyzeFoodImage = async (base64Image: string, mimeType: string): Promise<Partial<FoodEntry>> => {
   // Use gemini-2.5-flash for multimodal inputs (image + text analysis)
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
@@ -176,71 +180,6 @@ export const analyzeFoodImage = async (base64Image: string, mimeType: string): P
 };
 
 export const getRecipeRecommendations = async (remaining: MacroData, query?: string): Promise<Recipe[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const basePrompt = `Based on these remaining daily macros: Calories: ${remaining.calories}, Protein: ${remaining.protein}g, Carbs: ${remaining.carbs}g, Fat: ${remaining.fat}g. `;
-  const specificQuery = query ? `Specifically search for recipes related to: "${query}". ` : "";
-  const prompt = `${basePrompt}${specificQuery}Suggest 3 healthy recipes. Each recipe should list title, calories, macros (including fiber), and basic steps.`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            description: { type: Type.STRING },
-            calories: { type: Type.NUMBER },
-            macros: {
-              type: Type.OBJECT,
-              properties: {
-                carbs: { type: Type.NUMBER },
-                fat: { type: Type.NUMBER },
-                protein: { type: Type.NUMBER },
-                fiber: { type: Type.NUMBER },
-              },
-              required: ['carbs', 'fat', 'protein']
-            },
-            prepTime: { type: Type.STRING },
-            ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
-            instructions: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-          required: ['title', 'description', 'calories', 'macros', 'prepTime', 'ingredients', 'instructions']
-        }
-      }
-    }
-  });
-
-  const normalizeStringArray = (input: any): string[] => {
-    if (!input) return [];
-    if (Array.isArray(input)) {
-        return input.flatMap(item => {
-            if (typeof item === 'string') return item;
-            if (typeof item === 'object' && item !== null) {
-                 // Handle potential object structures
-                 if ('amount' in item && 'name' in item) return `${item.amount} ${item.name}`;
-                 if ('item' in item && 'quantity' in item) return `${item.quantity} ${item.item}`;
-                 
-                 // Fallback: treat as key-value map (e.g. {"tuna": "1 can"})
-                 return Object.entries(item).map(([k, v]) => `${v} ${k}`);
-            }
-            return String(item);
-        });
-    }
-    if (typeof input === 'object') {
-        return Object.entries(input).map(([k, v]) => `${v} ${k}`);
-    }
-    return [String(input)];
-  };
-
-  const rawJson = response.text;
-  return JSON.parse(rawJson || '[]').map((r: any) => ({
-    ...r,
-    id: crypto.randomUUID(),
-    macros: { ...r.macros, calories: r.calories, fiber: r.macros.fiber || 0 },
-    ingredients: normalizeStringArray(r.ingredients),
-    instructions: normalizeStringArray(r.instructions)
-  }));
-};
+  const specificQuery = query ? `Specifically search for recipes

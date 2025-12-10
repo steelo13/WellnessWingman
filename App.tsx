@@ -511,7 +511,7 @@ const App: React.FC = () => {
             steps={steps} 
             isSyncing={isSyncingSteps} 
             onSync={handleSyncSteps} 
-            onCameraClick={() => setActiveView(AppView.CAMERA)}
+            onCameraClick={() => fileInputRef.current?.click()}
             isNetCarbs={isNetCarbsMode}
             onResetSteps={handleResetSteps}
           />
@@ -543,7 +543,7 @@ const App: React.FC = () => {
               <div className="bg-white p-8 rounded-3xl text-center text-gray-400">
                 <p>Nothing logged for today.</p>
                 <button 
-                  onClick={() => setActiveView(AppView.CAMERA)}
+                  onClick={() => fileInputRef.current?.click()}
                   className="mt-4 text-blue-600 font-bold"
                 >
                   Scan a meal to start
@@ -740,7 +740,6 @@ const App: React.FC = () => {
       <input 
         type="file" 
         accept="image/*" 
-        capture="environment" 
         ref={fileInputRef} 
         onChange={handleFileUpload}
         className="hidden" 
