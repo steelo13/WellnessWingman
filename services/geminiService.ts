@@ -182,4 +182,43 @@ export const analyzeFoodImage = async (base64Image: string, mimeType: string): P
 export const getRecipeRecommendations = async (remaining: MacroData, query?: string): Promise<Recipe[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const basePrompt = `Based on these remaining daily macros: Calories: ${remaining.calories}, Protein: ${remaining.protein}g, Carbs: ${remaining.carbs}g, Fat: ${remaining.fat}g. `;
-  const specificQuery = query ? `Specifically search for recipes
+  const specificQuery = query ? `Specifically search for recipes matching: "${query}". ` : "Suggest 3 diverse healthy recipes that fit these macros. ";
+  
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: basePrompt + specificQuery + "Return a JSON array of recipes.",
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            title: { type: Type.STRING },
+            description: { type: Type.STRING },
+            calories: { type: Type.NUMBER },
+            macros: {
+              type: Type.OBJECT,
+              properties: {
+                carbs: { type: Type.NUMBER },
+                fat: { type: Type.NUMBER },
+                protein: { type: Type.NUMBER },
+                fiber: { type: Type.NUMBER },
+                calories: { type: Type.NUMBER }
+              },
+              required: ['carbs', 'fat', 'protein', 'calories']
+            },
+            prepTime: { type: Type.STRING },
+            ingredients: { type: Type.ARRAY, items: { type: Type.STRING } },
+            instructions: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ['id', 'title', 'description', 'calories', 'macros', 'prepTime', 'ingredients', 'instructions']
+        }
+      }
+    },
+  });
+
+  const recipes = JSON.parse(response.text || '[]');
+  return recipes.map((r: any) => ({ ...r, id: r.id || crypto.randomUUID() }));
+};
