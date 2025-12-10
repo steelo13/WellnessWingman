@@ -1,11 +1,10 @@
-
 import React from 'react';
 
 export const COLORS = {
   primary: '#0066FF',
   secondary: '#FF9500',
   accent: '#34C759',
-  background: '#F8FAFC',
+  background: '#effdf5',
 };
 
 export const Icons = {

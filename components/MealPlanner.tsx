@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
 
@@ -52,8 +51,8 @@ const MealPlanner: React.FC<MealPlannerProps> = ({ savedRecipes, onClose }) => {
   };
 
   return (
-    <div className="pb-24 pt-6 px-4 space-y-6 bg-slate-50 min-h-full">
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50 py-2 z-10">
+    <div className="pb-24 pt-6 px-4 space-y-6 bg-[#effdf5] min-h-full">
+      <div className="flex items-center justify-between sticky top-0 bg-[#effdf5] py-2 z-10">
         <h1 className="text-2xl font-black text-gray-800">Weekly Planner</h1>
         <button 
           onClick={onClose}

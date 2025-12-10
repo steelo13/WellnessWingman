@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FoodEntry, ExerciseEntry, MacroData, AppView, ChatMessage, Recipe } from './types';
 import { Icons, COLORS } from './constants';
@@ -775,7 +774,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen relative bg-slate-50 overflow-hidden shadow-2xl flex flex-col">
+    <div className="max-w-md mx-auto h-screen relative bg-[#effdf5] overflow-hidden shadow-2xl flex flex-col">
       <input 
         type="file" 
         accept="image/*" 
@@ -784,7 +783,7 @@ const App: React.FC = () => {
         className="hidden" 
       />
 
-      <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-slate-50 z-10 border-b border-gray-100">
+      <header className="px-6 py-4 flex items-center justify-between sticky top-0 bg-[#effdf5] z-10 border-b border-gray-100">
         <h1 className="text-xl font-black text-blue-600 tracking-tight">WellnessWingman</h1>
         <div className="flex items-center gap-3">
           {!isPremium && (

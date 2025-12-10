@@ -13,22 +13,52 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ recipes, onRemove, onClos
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const handleShare = async (recipe: Recipe) => {
-    const shareData = {
-      title: `Healthy Recipe: ${recipe.title}`,
-      text: `I found this great recipe on WellnessWingman!\n\n${recipe.title}\n${recipe.calories} kcal | ${recipe.macros.protein}g Protein\n\n${recipe.description}`,
-      url: window.location.href
-    };
+    const textToShare = [
+      `🍳 ${recipe.title}`,
+      `📝 ${recipe.description}`,
+      `⚡ ${recipe.calories} kcal | 🥩 ${recipe.macros.protein}g Protein`,
+      '',
+      '🥕 INGREDIENTS:',
+      recipe.ingredients.map(i => `• ${i}`).join('\n'),
+      '',
+      '👨‍🍳 INSTRUCTIONS:',
+      recipe.instructions.map((s, i) => `${i + 1}. ${s}`).join('\n')
+    ].join('\n');
 
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else {
-         const text = `${shareData.title}\n\n${shareData.text}\n\nIngredients:\n${recipe.ingredients.join(', ')}\n\nInstructions:\n${recipe.instructions.join('\n')}`;
-         await navigator.clipboard.writeText(text);
-         alert('Recipe details copied to clipboard!');
+    // 1. Try Native Share
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: recipe.title,
+          text: textToShare,
+        });
+        return; 
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        console.warn('Share API failed, trying clipboard...', err);
       }
+    }
+
+    // 2. Try Clipboard API
+    try {
+      await navigator.clipboard.writeText(textToShare);
+      alert('Recipe copied to clipboard!');
     } catch (err) {
-      console.error('Share failed:', err);
+      // 3. Fallback to legacy execCommand
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToShare;
+        textArea.style.position = "fixed"; 
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Recipe copied to clipboard!');
+      } catch (e) {
+        alert('Could not share or copy recipe.');
+      }
     }
   };
 
@@ -41,7 +71,7 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ recipes, onRemove, onClos
 
   return (
     <div className="pb-24 pt-6 px-4 space-y-6">
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50 py-2 z-10">
+      <div className="flex items-center justify-between sticky top-0 bg-[#effdf5] py-2 z-10">
         <h1 className="text-2xl font-black text-gray-800">Saved Favorites</h1>
         <button 
           onClick={onClose}
@@ -100,6 +130,12 @@ const FavoritesView: React.FC<FavoritesViewProps> = ({ recipes, onRemove, onClos
                   className="p-2 text-blue-600 transition active:scale-90"
                >
                   {Icons.Share()}
+               </button>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); handleRemove(selectedRecipe); }}
+                  className="p-2 text-red-500 transition active:scale-90"
+               >
+                 {Icons.Heart(true)}
                </button>
              </div>
           </header>

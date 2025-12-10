@@ -35,7 +35,7 @@ const MacroTracker: React.FC<MacroTrackerProps> = ({ entries, goal, isNetMode, o
 
   return (
     <div className="pb-24 pt-6 px-4 space-y-6">
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50 py-2 z-10">
+      <div className="flex items-center justify-between sticky top-0 bg-[#effdf5] py-2 z-10">
         <h1 className="text-2xl font-black text-gray-800">Macro Deep Dive</h1>
         <button 
           onClick={onClose}

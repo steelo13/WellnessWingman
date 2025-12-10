@@ -33,22 +33,53 @@ const RecipeExplorer: React.FC<RecipeExplorerProps> = ({ remainingMacros, savedR
   };
 
   const handleShare = async (recipe: Recipe) => {
-    const shareData = {
-      title: `Healthy Recipe: ${recipe.title}`,
-      text: `I found this great recipe on WellnessWingman!\n\n${recipe.title}\n${recipe.calories} kcal | ${recipe.macros.protein}g Protein\n\n${recipe.description}`,
-      url: window.location.href
-    };
+    const textToShare = [
+      `🍳 ${recipe.title}`,
+      `📝 ${recipe.description}`,
+      `⚡ ${recipe.calories} kcal | 🥩 ${recipe.macros.protein}g Protein`,
+      '',
+      '🥕 INGREDIENTS:',
+      recipe.ingredients.map(i => `• ${i}`).join('\n'),
+      '',
+      '👨‍🍳 INSTRUCTIONS:',
+      recipe.instructions.map((s, i) => `${i + 1}. ${s}`).join('\n')
+    ].join('\n');
 
-    try {
-      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else {
-         const text = `${shareData.title}\n\n${shareData.text}\n\nIngredients:\n${recipe.ingredients.join(', ')}\n\nInstructions:\n${recipe.instructions.join('\n')}`;
-         await navigator.clipboard.writeText(text);
-         alert('Recipe details copied to clipboard!');
+    // 1. Try Native Share
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: recipe.title,
+          text: textToShare,
+        });
+        return; 
+      } catch (err) {
+        // Ignore AbortError (user cancelled)
+        if ((err as Error).name === 'AbortError') return;
+        console.warn('Share API failed, trying clipboard...', err);
       }
+    }
+
+    // 2. Try Clipboard API
+    try {
+      await navigator.clipboard.writeText(textToShare);
+      alert('Recipe copied to clipboard!');
     } catch (err) {
-      console.error('Share failed:', err);
+      // 3. Fallback to legacy execCommand
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = textToShare;
+        textArea.style.position = "fixed"; 
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Recipe copied to clipboard!');
+      } catch (e) {
+        alert('Could not share or copy recipe.');
+      }
     }
   };
 
