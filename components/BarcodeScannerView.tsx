@@ -21,15 +21,16 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
         try { scannerRef.current.clear(); } catch(e){}
     }
 
-    const html5QrCode = new Html5Qrcode("reader");
+    // Initialize without verbose mode
+    const html5QrCode = new Html5Qrcode("reader", false);
     scannerRef.current = html5QrCode;
 
+    // Config: qrbox removed to allow full-screen scanning and prevent mobile layout miscalculations
     const config = { 
       fps: 10, 
-      qrbox: { width: 250, height: 250 },
-      // Important: aspectRatio is removed to prevent mobile sizing issues
       videoConstraints: {
-        focusMode: "continuous"
+        focusMode: "continuous",
+        facingMode: "environment"
       }
     };
 
@@ -54,19 +55,27 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
 
     const startScanner = async () => {
       try {
-        // Direct attempt with environment camera - most robust method for mobiles
+        // Direct attempt with environment camera
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
           handleSuccess,
           handleError
         );
+
+        // Mobile Fix: Manually ensure video element plays inline and is visible
+        const videoElement = document.querySelector('#reader video') as HTMLVideoElement;
+        if (videoElement) {
+           videoElement.setAttribute('playsinline', 'true');
+           // videoElement.play().catch(() => {}); // Library handles play, but we ensure attr
+        }
+
       } catch (err: any) {
         console.warn("Environment camera start failed:", err);
         
         if (isUnmounting.current) return;
 
-        // Fallback: Try "user" camera if environment fails (common on some PCs or if locked)
+        // Fallback: Try "user" camera
         try {
            await html5QrCode.start(
             { facingMode: "user" },
@@ -112,7 +121,7 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
       
       {/* Container must have explicit size for video to fill */}
       <div className="relative w-full max-w-sm aspect-square bg-black rounded-[32px] overflow-hidden shadow-2xl border border-white/10">
-        <div id="reader" className="w-full h-full relative z-10"></div>
+        <div id="reader" className="w-full h-full relative z-10 bg-black"></div>
         
         {/* Error Display */}
         {errorMsg && (
