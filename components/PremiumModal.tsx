@@ -47,7 +47,7 @@ const PremiumModal: React.FC<PremiumModalProps> = ({ isOpen, onClose, onConfirm 
             </button>
           </div>
           <p className="text-xs text-gray-400 text-center mt-6">
-            $39.99/month after trial. Cancel anytime.
+            $19.99/month after trial. Cancel anytime.
           </p>
         </div>
       </div>

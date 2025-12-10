@@ -727,7 +727,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth">
         {renderView()}
       </main>
 
