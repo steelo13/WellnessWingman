@@ -58,5 +58,22 @@ export const Icons = {
   ),
   Star: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+  ),
+  Walker: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+       <g className="walker-torso">
+          {/* Back Limbs (Left Leg/Arm equivalent) */}
+          <path d="M12 12L12 21l2 0" className="walker-limb-back walker-leg" />
+          <path d="M12 6L12 14" className="walker-limb-back walker-arm" />
+          
+          {/* Body & Head */}
+          <path d="M12 6v6" />
+          <circle cx="12" cy="4" r="2" />
+          
+          {/* Front Limbs (Right Leg/Arm equivalent) */}
+          <path d="M12 12L12 21l2 0" className="walker-leg" />
+          <path d="M12 6L12 14" className="walker-arm" />
+       </g>
+    </svg>
   )
 };

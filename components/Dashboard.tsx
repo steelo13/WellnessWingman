@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { MacroData, FoodEntry, ExerciseEntry } from '../types';
@@ -125,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, 
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-gray-800">Steps & Activity</h3>
             <button 
@@ -135,12 +134,19 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, 
               RESET
             </button>
           </div>
-          <div className="flex flex-col items-center justify-center py-4">
+          <div className="flex flex-col items-center justify-center py-4 relative z-10">
             <p className="text-4xl font-black text-blue-600 transition-all duration-300">
               {steps.toLocaleString()}
             </p>
-            <p className="text-gray-400 text-xs font-medium">Steps Today</p>
+            <p className="text-gray-400 text-xs font-medium mb-4">Steps Today</p>
+            
+            <div className="text-blue-400">
+               {Icons.Walker()}
+            </div>
           </div>
+          
+          {/* Subtle background decoration */}
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-50"></div>
         </div>
       </div>
 
