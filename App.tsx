@@ -33,8 +33,13 @@ const App: React.FC = () => {
   const [moreSubView, setMoreSubView] = useState<'menu' | 'goals'>('menu');
   const [isNetCarbsMode, setIsNetCarbsMode] = useState(false);
   
+  // Data State
   const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [exercises, setExercises] = useState<ExerciseEntry[]>([]);
+  
+  // History State
+  const [viewDate, setViewDate] = useState<Date>(new Date());
+
   const [isPremium, setIsPremium] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
@@ -124,6 +129,7 @@ const App: React.FC = () => {
     chatSessionRef.current = null;
   }, [useDeepThinking, customInstructions]);
 
+  // Load Persistence
   useEffect(() => {
     const saved = localStorage.getItem('wellness_saved_recipes');
     if (saved) {
@@ -133,6 +139,17 @@ const App: React.FC = () => {
         console.error("Failed to load saved recipes");
       }
     }
+
+    const savedEntries = localStorage.getItem('wellness_entries');
+    if (savedEntries) {
+      try { setEntries(JSON.parse(savedEntries)); } catch(e) {}
+    }
+
+    const savedExercises = localStorage.getItem('wellness_exercises');
+    if (savedExercises) {
+      try { setExercises(JSON.parse(savedExercises)); } catch(e) {}
+    }
+
     const savedInstructions = localStorage.getItem('wellness_coach_instructions');
     if (savedInstructions) {
       setCustomInstructions(savedInstructions);
@@ -153,6 +170,15 @@ const App: React.FC = () => {
       localStorage.setItem('wellness_water_date', today);
     }
   }, []);
+
+  // Save Persistence
+  useEffect(() => {
+    localStorage.setItem('wellness_entries', JSON.stringify(entries));
+  }, [entries]);
+
+  useEffect(() => {
+    localStorage.setItem('wellness_exercises', JSON.stringify(exercises));
+  }, [exercises]);
 
   const toggleNetCarbs = () => {
     const newVal = !isNetCarbsMode;
@@ -269,6 +295,7 @@ const App: React.FC = () => {
         setTimeout(() => setLastLoggedId(null), 2500);
       }
       setActiveView(AppView.DIARY);
+      setViewDate(new Date()); // Jump to today on add
     } catch (err) {
       console.error("Voice parse error:", err);
       alert("I understood you spoke, but I couldn't quite map that to an entry. Try being more specific like 'I had an apple' or 'I ran for 20 minutes'.");
@@ -277,22 +304,6 @@ const App: React.FC = () => {
       setShowVoiceModal(false);
       setVoiceTranscript('');
     }
-  };
-
-  const currentConsumption = entries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.calories,
-    carbs: acc.carbs + (isNetCarbsMode ? curr.macros.carbs - (curr.macros.fiber || 0) : curr.macros.carbs),
-    fat: acc.fat + curr.macros.fat,
-    protein: acc.protein + curr.macros.protein,
-  }), { calories: 0, carbs: 0, fat: 0, protein: 0 });
-
-  const burned = exercises.reduce((acc, curr) => acc + curr.caloriesBurned, 0);
-
-  const remainingMacros: MacroData = {
-    calories: Math.max(0, (userGoal.calories + burned) - currentConsumption.calories),
-    carbs: Math.max(0, userGoal.carbs - currentConsumption.carbs),
-    fat: Math.max(0, userGoal.fat - currentConsumption.fat),
-    protein: Math.max(0, userGoal.protein - currentConsumption.protein),
   };
 
   const handleSyncSteps = () => {
@@ -347,6 +358,7 @@ const App: React.FC = () => {
   const addEntry = (entry: FoodEntry) => {
     setEntries(prev => [...prev, entry]);
     setLastLoggedId(entry.id);
+    setViewDate(new Date()); // Always jump to today when adding
     setTimeout(() => setLastLoggedId(null), 2500);
   };
 
@@ -382,6 +394,7 @@ const App: React.FC = () => {
     setExDuration('');
     setExCalories('');
     setActiveView(AppView.DIARY);
+    setViewDate(new Date()); // Jump to today on add
   };
 
   const handleBarcodeScanned = async (barcode: string) => {
@@ -511,6 +524,21 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper to filter data by date
+  const getForDate = (date: Date) => {
+    const dateStr = date.toDateString();
+    return {
+      entries: entries.filter(e => new Date(e.timestamp).toDateString() === dateStr),
+      exercises: exercises.filter(e => new Date(e.timestamp).toDateString() === dateStr)
+    };
+  };
+
+  const changeDate = (days: number) => {
+    const newDate = new Date(viewDate);
+    newDate.setDate(newDate.getDate() + days);
+    setViewDate(newDate);
+  };
+
   const renderView = () => {
     switch (activeView) {
       case AppView.CAMERA:
@@ -519,7 +547,7 @@ const App: React.FC = () => {
                   onClose={() => setActiveView(AppView.MORE)} 
                 />;
       case AppView.MACRO_TRACKER:
-        return <MacroTracker entries={entries} goal={userGoal} isNetMode={isNetCarbsMode} onClose={() => setActiveView(AppView.MORE)} />;
+        return <MacroTracker entries={getForDate(viewDate).entries} goal={userGoal} isNetMode={isNetCarbsMode} onClose={() => setActiveView(AppView.MORE)} />;
       case AppView.MEAL_PLANNER:
         return <MealPlanner 
                   savedRecipes={savedRecipes} 
@@ -537,10 +565,12 @@ const App: React.FC = () => {
                   onClose={() => setActiveView(AppView.MORE)} 
                />;
       case AppView.DASHBOARD:
+        // Dashboard always shows TODAY's progress
+        const todayData = getForDate(new Date());
         return (
           <Dashboard 
-            entries={entries} 
-            exercises={exercises}
+            entries={todayData.entries} 
+            exercises={todayData.exercises}
             goal={userGoal} 
             steps={steps} 
             isSyncing={isSyncingSteps} 
@@ -554,42 +584,97 @@ const App: React.FC = () => {
           />
         );
       case AppView.DIARY:
+        const { entries: dailyEntries, exercises: dailyExercises } = getForDate(viewDate);
+        const isToday = viewDate.toDateString() === new Date().toDateString();
+        
+        // Calculate daily stats for the history view
+        const dailyTotal = dailyEntries.reduce((acc, curr) => ({
+          calories: acc.calories + curr.calories,
+          protein: acc.protein + curr.macros.protein,
+          carbs: acc.carbs + (isNetCarbsMode ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
+          fat: acc.fat + curr.macros.fat,
+        }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+        const dailyBurned = dailyExercises.reduce((acc, ex) => acc + ex.caloriesBurned, 0);
+
         return (
           <div className="pb-24 pt-6 px-4">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold">Diary</h1>
-              <div className="flex gap-2">
-                <button 
-                  onClick={startVoiceLogging}
-                  className="relative bg-blue-100 text-blue-700 text-xs font-bold px-4 py-2 rounded-full border border-blue-200 flex items-center gap-2"
-                >
-                  {!isPremium && <div className="absolute -top-2 -right-2 text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-black shadow-sm transform scale-90">PRO</div>}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                  VOICE
-                </button>
-                <button 
-                  onClick={() => setShowExerciseModal(true)}
-                  className="bg-green-100 text-green-700 text-xs font-bold px-4 py-2 rounded-full border border-green-200"
-                >
-                  + EXERCISE
-                </button>
-              </div>
+            {/* Date Navigation Header */}
+            <div className="flex items-center justify-between mb-6 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+               <button onClick={() => changeDate(-1)} className="p-2 text-gray-400 hover:text-blue-600 transition">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+               </button>
+               <div className="text-center">
+                  <h1 className="text-lg font-bold text-gray-800">
+                    {isToday ? 'Today' : viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </h1>
+                  {!isToday && <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">History Log</p>}
+               </div>
+               <button onClick={() => changeDate(1)} disabled={isToday} className={`p-2 transition ${isToday ? 'text-gray-200' : 'text-gray-400 hover:text-blue-600'}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+               </button>
+            </div>
+
+            {/* Daily Summary Card */}
+            <div className="bg-white rounded-3xl p-5 mb-6 shadow-sm border border-gray-100">
+               <div className="flex justify-between items-center mb-3">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Daily Summary</span>
+                  <span className="text-xs font-bold text-blue-600">{dailyTotal.calories} / {userGoal.calories} kcal</span>
+               </div>
+               <div className="flex justify-between gap-2 text-center">
+                  <div className="flex-1 bg-red-50 p-2 rounded-xl">
+                     <p className="text-[10px] text-red-400 font-bold uppercase">Pro</p>
+                     <p className="font-black text-gray-800">{dailyTotal.protein.toFixed(0)}g</p>
+                  </div>
+                  <div className="flex-1 bg-green-50 p-2 rounded-xl">
+                     <p className="text-[10px] text-green-400 font-bold uppercase">{isNetCarbsMode ? 'Net C' : 'Carb'}</p>
+                     <p className="font-black text-gray-800">{dailyTotal.carbs.toFixed(0)}g</p>
+                  </div>
+                  <div className="flex-1 bg-amber-50 p-2 rounded-xl">
+                     <p className="text-[10px] text-amber-400 font-bold uppercase">Fat</p>
+                     <p className="font-black text-gray-800">{dailyTotal.fat.toFixed(0)}g</p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Diary</h2>
+              {isToday && (
+                <div className="flex gap-2">
+                  <button 
+                    onClick={startVoiceLogging}
+                    className="relative bg-blue-100 text-blue-700 text-xs font-bold px-4 py-2 rounded-full border border-blue-200 flex items-center gap-2"
+                  >
+                    {!isPremium && <div className="absolute -top-2 -right-2 text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-black shadow-sm transform scale-90">PRO</div>}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+                    VOICE
+                  </button>
+                  <button 
+                    onClick={() => setShowExerciseModal(true)}
+                    className="bg-green-100 text-green-700 text-xs font-bold px-4 py-2 rounded-full border border-green-200"
+                  >
+                    + EXERCISE
+                  </button>
+                </div>
+              )}
             </div>
             
-            {entries.length === 0 && exercises.length === 0 ? (
-              <div className="bg-white p-8 rounded-3xl text-center text-gray-400">
-                <p>Nothing logged for today.</p>
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mt-4 text-blue-600 font-bold"
-                >
-                  Scan a meal to start
-                </button>
+            {dailyEntries.length === 0 && dailyExercises.length === 0 ? (
+              <div className="bg-white p-8 rounded-3xl text-center text-gray-400 mb-8">
+                <p>No entries for {isToday ? 'today' : 'this day'}.</p>
+                {isToday && (
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-4 text-blue-600 font-bold"
+                  >
+                    Scan a meal to start
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-6">
                 {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map(cat => {
-                  const categoryEntries = entries.filter(e => e.category === cat);
+                  const categoryEntries = dailyEntries.filter(e => e.category === cat);
                   if (categoryEntries.length === 0) return null;
 
                   return (
@@ -614,10 +699,10 @@ const App: React.FC = () => {
                   );
                 })}
 
-                {exercises.length > 0 && (
+                {dailyExercises.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="font-bold text-green-600 text-xs uppercase tracking-widest px-1">Exercise</h3>
-                    {exercises.map(ex => (
+                    {dailyExercises.map(ex => (
                       <div 
                         key={ex.id} 
                         className={`animate-entry bg-green-50/30 p-4 rounded-2xl shadow-sm border border-green-100 flex justify-between items-center transition-all ${lastLoggedId === ex.id ? 'animate-success-highlight !border-green-400' : ''}`}
@@ -637,24 +722,46 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-8">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Quick Log</h3>
-              <div className="grid grid-cols-2 gap-3 pb-4">
-                {QUICK_FOODS.map(food => (
-                  <button
-                    key={food.name}
-                    onClick={() => handleQuickAdd(food)}
-                    className="w-full bg-white border border-gray-100 px-4 py-3 rounded-2xl shadow-sm hover:border-blue-200 transition active:scale-95 text-left flex flex-col justify-center"
-                  >
-                    <p className="font-bold text-gray-800 text-sm">{food.name}</p>
-                    <p className="text-[10px] text-blue-500 font-bold">{food.calories} cal</p>
-                  </button>
-                ))}
+            {isToday && (
+              <div className="mt-8">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Quick Log</h3>
+                <div className="grid grid-cols-2 gap-3 pb-4">
+                  {QUICK_FOODS.map(food => (
+                    <button
+                      key={food.name}
+                      onClick={() => handleQuickAdd(food)}
+                      className="w-full bg-white border border-gray-100 px-4 py-3 rounded-2xl shadow-sm hover:border-blue-200 transition active:scale-95 text-left flex flex-col justify-center"
+                    >
+                      <p className="font-bold text-gray-800 text-sm">{food.name}</p>
+                      <p className="text-[10px] text-blue-500 font-bold">{food.calories} cal</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         );
       case AppView.PLANS:
+        const remainingMacros = (() => {
+           // We need TODAY's remaining macros for the recipe suggestions
+           const { entries: todayEntries, exercises: todayExercises } = getForDate(new Date());
+           const todayCurrent = todayEntries.reduce((acc, curr) => ({
+             calories: acc.calories + curr.calories,
+             carbs: acc.carbs + (isNetCarbsMode ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
+             fat: acc.fat + curr.macros.fat,
+             protein: acc.protein + curr.macros.protein,
+           }), { calories: 0, carbs: 0, fat: 0, protein: 0 });
+
+           const todayBurned = todayExercises.reduce((acc, curr) => acc + curr.caloriesBurned, 0);
+
+           return {
+             calories: Math.max(0, (userGoal.calories + todayBurned) - todayCurrent.calories),
+             carbs: Math.max(0, userGoal.carbs - todayCurrent.carbs),
+             fat: Math.max(0, userGoal.fat - todayCurrent.fat),
+             protein: Math.max(0, userGoal.protein - todayCurrent.protein),
+           };
+        })();
+
         return <RecipeExplorer 
                   remainingMacros={remainingMacros} 
                   savedRecipes={savedRecipes} 
@@ -811,7 +918,7 @@ const App: React.FC = () => {
           <span className="text-[10px] mt-1 font-semibold">Home</span>
         </button>
         <button 
-          onClick={() => setActiveView(AppView.DIARY)}
+          onClick={() => { setActiveView(AppView.DIARY); setViewDate(new Date()); }}
           className={`flex flex-col items-center p-2 transition flex-1 ${activeView === AppView.DIARY ? 'text-blue-600' : 'text-gray-400'}`}
         >
           {Icons.Diary()}
