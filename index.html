@@ -55,18 +55,46 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+      
+      /* Interactive Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 14px; /* Sufficient width for touch target */
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background-color: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: rgba(203, 213, 225, 0.8); /* visible gray (slate-300) */
+        border-radius: 20px;
+        border: 5px solid transparent; /* Creates padding so visible bar is thin (14-5-5 = 4px) */
+        background-clip: content-box; /* Only color the content, not border */
+        transition: background-color 0.2s, border-width 0.2s;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+      .custom-scrollbar::-webkit-scrollbar-thumb:active {
+        background-color: rgba(148, 163, 184, 1); /* darker gray (slate-400) */
+        border-width: 3px; /* Reduces border to 3px, making visible bar thicker (14-3-3 = 8px) */
+      }
+
       /* Barcode Scanner Fixes */
       #reader {
         width: 100% !important;
         height: 100% !important;
         position: relative;
         overflow: hidden;
+        border-radius: 24px;
       }
       #reader video {
         width: 100% !important;
         height: 100% !important;
         object-fit: cover !important;
-        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
+      }
+      #reader canvas, #reader button, #reader a {
+        display: none !important;
       }
     </style>
   <script type="importmap">

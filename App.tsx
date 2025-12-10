@@ -10,6 +10,7 @@ import MoreTab from './components/MoreTab';
 import BarcodeScannerView from './components/BarcodeScannerView';
 import MealPlanner from './components/MealPlanner';
 import MacroTracker from './components/MacroTracker';
+import CameraCaptureView from './components/CameraCaptureView';
 import { analyzeFoodImage, createCoachChatSession, parseVoiceCommand, lookupFoodByBarcode } from './services/geminiService';
 
 const DEFAULT_GOAL: MacroData = {
@@ -378,6 +379,34 @@ const App: React.FC = () => {
     }
   };
 
+  const handleCameraCapture = async (dataUrl: string) => {
+    setIsAiThinking(true);
+    // Switch to diary view to show progress
+    setActiveView(AppView.DIARY);
+
+    const mimeType = dataUrl.split(';')[0].split(':')[1];
+    const base64 = dataUrl.split(',')[1];
+
+    try {
+      const result = await analyzeFoodImage(base64, mimeType);
+      const newEntry: FoodEntry = {
+        id: crypto.randomUUID(),
+        name: result.name || 'Analyzed Meal',
+        amount: result.amount || '1 portion',
+        calories: result.calories || 0,
+        macros: result.macros || { carbs: 0, fat: 0, protein: 0, fiber: 0, calories: 0 },
+        category: (result.category as any) || 'Lunch',
+        timestamp: Date.now()
+      };
+      addEntry(newEntry);
+    } catch (err) {
+      console.error("Camera analysis error:", err);
+      alert("Wellness Wingman had trouble seeing that meal. Please try again or check your connection.");
+    } finally {
+      setIsAiThinking(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -456,6 +485,11 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (activeView) {
+      case AppView.CAMERA:
+        return <CameraCaptureView 
+                  onCapture={handleCameraCapture} 
+                  onClose={() => setActiveView(AppView.MORE)} 
+                />;
       case AppView.MACRO_TRACKER:
         return <MacroTracker entries={entries} goal={userGoal} isNetMode={isNetCarbsMode} onClose={() => setActiveView(AppView.MORE)} />;
       case AppView.MEAL_PLANNER:
@@ -477,7 +511,7 @@ const App: React.FC = () => {
             steps={steps} 
             isSyncing={isSyncingSteps} 
             onSync={handleSyncSteps} 
-            onCameraClick={() => fileInputRef.current?.click()}
+            onCameraClick={() => setActiveView(AppView.CAMERA)}
             isNetCarbs={isNetCarbsMode}
             onResetSteps={handleResetSteps}
           />
@@ -509,7 +543,7 @@ const App: React.FC = () => {
               <div className="bg-white p-8 rounded-3xl text-center text-gray-400">
                 <p>Nothing logged for today.</p>
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setActiveView(AppView.CAMERA)}
                   className="mt-4 text-blue-600 font-bold"
                 >
                   Scan a meal to start
@@ -568,12 +602,12 @@ const App: React.FC = () => {
 
             <div className="mt-8">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Quick Log</h3>
-              <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+              <div className="grid grid-cols-2 gap-3 pb-4">
                 {QUICK_FOODS.map(food => (
                   <button
                     key={food.name}
                     onClick={() => handleQuickAdd(food)}
-                    className="shrink-0 bg-white border border-gray-100 px-4 py-3 rounded-2xl shadow-sm hover:border-blue-200 transition active:scale-95 text-left"
+                    className="w-full bg-white border border-gray-100 px-4 py-3 rounded-2xl shadow-sm hover:border-blue-200 transition active:scale-95 text-left flex flex-col justify-center"
                   >
                     <p className="font-bold text-gray-800 text-sm">{food.name}</p>
                     <p className="text-[10px] text-blue-500 font-bold">{food.calories} cal</p>
@@ -692,7 +726,7 @@ const App: React.FC = () => {
               else if (id === 'barcode') setActiveView(AppView.SCANNER);
               else if (id === 'planner') setActiveView(AppView.MEAL_PLANNER);
               else if (id === 'macros') setActiveView(AppView.MACRO_TRACKER);
-              else if (id === 'vision') fileInputRef.current?.click();
+              else if (id === 'vision') setActiveView(AppView.CAMERA);
             }} 
           />
         );
@@ -727,7 +761,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth">
+      <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth custom-scrollbar">
         {renderView()}
       </main>
 

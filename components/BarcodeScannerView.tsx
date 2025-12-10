@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface BarcodeScannerViewProps {
   onScan: (barcode: string) => void;
@@ -7,40 +7,93 @@ interface BarcodeScannerViewProps {
 }
 
 const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose }) => {
+  const scannerRef = useRef<any>(null);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const isUnmounting = useRef(false);
+
   useEffect(() => {
+    isUnmounting.current = false;
     // @ts-ignore
+    const Html5Qrcode = window.Html5Qrcode;
+    
+    // Cleanup previous instance if exists (safety check)
+    if (scannerRef.current) {
+        try { scannerRef.current.clear(); } catch(e){}
+    }
+
     const html5QrCode = new Html5Qrcode("reader");
-    // Use a simpler config for better mobile compatibility
+    scannerRef.current = html5QrCode;
+
     const config = { 
       fps: 10, 
       qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0
+      // Important: aspectRatio is removed to prevent mobile sizing issues
+      videoConstraints: {
+        focusMode: "continuous"
+      }
+    };
+
+    const handleSuccess = (decodedText: string) => {
+      if (isUnmounting.current) return;
+      
+      // Stop scanning immediately upon success
+      html5QrCode.stop().then(() => {
+        if(!isUnmounting.current) {
+            html5QrCode.clear();
+            onScan(decodedText);
+        }
+      }).catch((err: any) => {
+        console.warn("Stop failed", err);
+        if(!isUnmounting.current) onScan(decodedText);
+      });
+    };
+
+    const handleError = (errorMessage: string) => {
+        // Ignored to prevent console spam for frames without QR codes
     };
 
     const startScanner = async () => {
       try {
+        // Direct attempt with environment camera - most robust method for mobiles
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
-          (decodedText: string) => {
-            html5QrCode.stop().then(() => {
-              onScan(decodedText);
-            });
-          },
-          () => {} // silent error handler
+          handleSuccess,
+          handleError
         );
-      } catch (err) {
-        console.error("Camera access failed", err);
-        alert("Could not access camera. Please ensure permissions are granted.");
-        onClose();
+      } catch (err: any) {
+        console.warn("Environment camera start failed:", err);
+        
+        if (isUnmounting.current) return;
+
+        // Fallback: Try "user" camera if environment fails (common on some PCs or if locked)
+        try {
+           await html5QrCode.start(
+            { facingMode: "user" },
+            config,
+            handleSuccess,
+            handleError
+          );
+        } catch (err2: any) {
+           console.error("All camera attempts failed:", err2);
+           if (!isUnmounting.current) {
+             setErrorMsg("Camera error: " + (err2?.message || "Could not start video source."));
+           }
+        }
       }
     };
 
-    startScanner();
+    // Small delay to ensure DOM is fully painted
+    const timer = setTimeout(startScanner, 100);
 
     return () => {
-      if (html5QrCode.isScanning) {
-        html5QrCode.stop().catch(console.error);
+      isUnmounting.current = true;
+      clearTimeout(timer);
+      if (scannerRef.current) {
+        if (scannerRef.current.isScanning) {
+            scannerRef.current.stop().catch((e: any) => console.warn("Cleanup stop error", e));
+        }
+        try { scannerRef.current.clear(); } catch(e){}
       }
     };
   }, []);
@@ -61,6 +114,13 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
       <div className="relative w-full max-w-sm aspect-square bg-black rounded-[32px] overflow-hidden shadow-2xl border border-white/10">
         <div id="reader" className="w-full h-full relative z-10"></div>
         
+        {/* Error Display */}
+        {errorMsg && (
+            <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/80 z-30 text-center">
+                <p className="text-white font-bold">{errorMsg}</p>
+            </div>
+        )}
+
         {/* Decorative Overlay Frame */}
         <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
            <div className="w-64 h-40 border-2 border-blue-500 rounded-2xl shadow-[0_0_0_1000px_rgba(0,0,0,0.5)]">

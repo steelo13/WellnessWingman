@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Recipe } from '../types';
 
@@ -62,16 +63,16 @@ const MealPlanner: React.FC<MealPlannerProps> = ({ savedRecipes, onClose }) => {
         </button>
       </div>
 
-      {/* Day Selector */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+      {/* Day Selector - Fixed 7 Day Layout */}
+      <div className="bg-white p-2 rounded-2xl border border-gray-100 flex justify-between items-center">
         {DAYS.map(day => (
           <button
             key={day}
             onClick={() => setSelectedDay(day)}
-            className={`shrink-0 px-6 py-3 rounded-2xl font-bold transition-all ${
+            className={`w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold transition-all ${
               selectedDay === day 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
-                : 'bg-white text-gray-400 border border-gray-100'
+                ? 'bg-blue-600 text-white shadow-md transform scale-105' 
+                : 'text-gray-400 hover:bg-gray-50'
             }`}
           >
             {day.substring(0, 3)}
@@ -81,6 +82,11 @@ const MealPlanner: React.FC<MealPlannerProps> = ({ savedRecipes, onClose }) => {
 
       {/* Meal Slots */}
       <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+           <h2 className="text-lg font-bold text-gray-800">{selectedDay}</h2>
+           <span className="text-xs text-gray-400 font-medium">{Object.keys(plan[selectedDay] || {}).filter(k => plan[selectedDay][k]).length} meals planned</span>
+        </div>
+
         {MEALS.map(mealType => {
           const planned = plan[selectedDay]?.[mealType];
           

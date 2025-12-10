@@ -50,5 +50,6 @@ export enum AppView {
   MORE = 'more',
   SCANNER = 'scanner',
   MEAL_PLANNER = 'meal_planner',
-  MACRO_TRACKER = 'macro_tracker'
+  MACRO_TRACKER = 'macro_tracker',
+  CAMERA = 'camera'
 }
