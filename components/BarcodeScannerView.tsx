@@ -24,14 +24,11 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
     const html5QrCode = new Html5Qrcode("reader", false);
     scannerRef.current = html5QrCode;
 
-    // Config: Removed qrbox to allow full video feed rendering. 
-    // Specifying a qrbox on mobile often leads to miscalculations and black screens.
     const config = { 
-      fps: 10, 
-      videoConstraints: {
-        focusMode: "continuous",
-        facingMode: "environment"
-      }
+      fps: 15, 
+      qrbox: { width: 250, height: 250 }, // Helping the scanner focus on the center
+      aspectRatio: 1.0,
+      disableFlip: false
     };
 
     const handleSuccess = (decodedText: string) => {
@@ -52,6 +49,21 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
         // quiet
     };
 
+    const applyVideoFixes = () => {
+      // CRITICAL FIX: Manually force video attributes for mobile autoplay
+      const videoElement = document.querySelector('#reader video') as HTMLVideoElement;
+      if (videoElement) {
+         videoElement.setAttribute('playsinline', 'true');
+         videoElement.muted = true;
+         videoElement.autoplay = true;
+         videoElement.removeAttribute('controls');
+         // Small delay to ensure attributes take effect before playing
+         setTimeout(() => {
+           videoElement.play().catch(e => console.warn("Manual play failed", e));
+         }, 100);
+      }
+    };
+
     const startScanner = async () => {
       try {
         await html5QrCode.start(
@@ -60,13 +72,7 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
           handleSuccess,
           handleError
         );
-
-        // CRITICAL FIX: Manually force playsinline on the video element created by the library.
-        // This prevents the black screen / full-screen player issue on iOS.
-        const videoElement = document.querySelector('#reader video') as HTMLVideoElement;
-        if (videoElement) {
-           videoElement.setAttribute('playsinline', 'true');
-        }
+        applyVideoFixes();
 
       } catch (err: any) {
         console.warn("Environment camera start failed:", err);
@@ -80,6 +86,7 @@ const BarcodeScannerView: React.FC<BarcodeScannerViewProps> = ({ onScan, onClose
             handleSuccess,
             handleError
           );
+          applyVideoFixes();
         } catch (err2: any) {
            console.error("All camera attempts failed:", err2);
            if (!isUnmounting.current) {
