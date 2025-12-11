@@ -53,11 +53,17 @@ export const Icons = {
   Droplet: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
   ),
+  DropletFilled: (size: number = 24) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+  ),
   Glass: (filled: boolean = false) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={filled ? "text-blue-500" : "text-blue-200"}><path d="M18 4H6v13a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V4Z"/><line x1="6" y1="8" x2="18" y2="8"/></svg>
   ),
   Star: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+  ),
+  Flame: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" className="text-orange-500"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5-2.5 1.12-2.5 2.5zM12 2c-4 4-8 8.5-8 13.5C4 20.2 7.8 24 12.5 24S21 20.2 21 15.5C21 10.5 17 6.5 12 2zm.5 20c-3.59 0-6.5-2.91-6.5-6.5 0-2.8 2.5-6.5 6-10.3 3.5 3.8 6 7.5 6 10.3 0 3.59-2.91 6.5-6.5 6.5z"/></svg>
   ),
   Walker: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

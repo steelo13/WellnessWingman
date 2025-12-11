@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Icons } from '../constants';
 
@@ -66,7 +65,7 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
       </div>
 
       <div className="p-8 text-center">
-        <p className="text-xs text-gray-300 font-medium">WellnessWingman Version 2.5.0</p>
+        <p className="text-xs text-gray-300 font-medium">WellnessWingman Version 2.6.0</p>
       </div>
     </div>
   );

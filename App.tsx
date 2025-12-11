@@ -21,6 +21,8 @@ const DEFAULT_GOAL: MacroData = {
   fiber: 30
 };
 
+const DAILY_WATER_GOAL = 2500;
+
 const QUICK_FOODS = [
   { name: '1 Banana', calories: 105, macros: { carbs: 27, fat: 0, protein: 1, fiber: 3, calories: 105 }, amount: '1 medium', category: 'Snacks' as const },
   { name: '1 scoop Whey', calories: 120, macros: { carbs: 3, fat: 1, protein: 24, fiber: 0, calories: 120 }, amount: '30g', category: 'Snacks' as const },
@@ -52,6 +54,8 @@ const App: React.FC = () => {
   
   // Water tracking state
   const [waterIntake, setWaterIntake] = useState(0);
+  const [waterHistory, setWaterHistory] = useState<Record<string, number>>({});
+  const [waterStreak, setWaterStreak] = useState(0);
 
   const [userGoal, setUserGoal] = useState<MacroData>(DEFAULT_GOAL);
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
@@ -158,17 +162,22 @@ const App: React.FC = () => {
     const savedNetMode = localStorage.getItem('wellness_net_carbs_mode');
     if (savedNetMode) setIsNetCarbsMode(savedNetMode === 'true');
 
-    // Load water intake
-    const savedWater = localStorage.getItem('wellness_water_intake');
-    const savedDate = localStorage.getItem('wellness_water_date');
-    const today = new Date().toDateString();
-    
-    if (savedDate === today && savedWater) {
-      setWaterIntake(parseInt(savedWater));
-    } else {
-      setWaterIntake(0);
-      localStorage.setItem('wellness_water_date', today);
+    // Load water history and calculate streak
+    const savedWaterHistory = localStorage.getItem('wellness_water_history');
+    let parsedHistory: Record<string, number> = {};
+    if (savedWaterHistory) {
+      try { parsedHistory = JSON.parse(savedWaterHistory); } catch(e) {}
     }
+    setWaterHistory(parsedHistory);
+
+    // Initialize today's water
+    const todayKey = new Date().toDateString();
+    if (parsedHistory[todayKey]) {
+      setWaterIntake(parsedHistory[todayKey]);
+    }
+    
+    // Calculate Streak on load
+    setWaterStreak(calculateStreak(parsedHistory));
   }, []);
 
   // Save Persistence
@@ -233,6 +242,63 @@ const App: React.FC = () => {
       recognitionRef.current = recognition;
     }
   }, []);
+
+  const calculateStreak = (history: Record<string, number>) => {
+    let streak = 0;
+    const today = new Date();
+    const todayKey = today.toDateString();
+    
+    // Check if today is met
+    if ((history[todayKey] || 0) >= DAILY_WATER_GOAL) {
+        streak++;
+    }
+
+    // Check past days
+    for (let i = 1; i < 365; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        const key = d.toDateString();
+        if ((history[key] || 0) >= DAILY_WATER_GOAL) {
+            streak++;
+        } else {
+            break; 
+        }
+    }
+    
+    // Re-calculating correctly for gaps:
+    let pastStreak = 0;
+    for (let i = 1; i < 365; i++) {
+       const d = new Date();
+       d.setDate(today.getDate() - i);
+       if ((history[d.toDateString()] || 0) >= DAILY_WATER_GOAL) {
+         pastStreak++;
+       } else {
+         break;
+       }
+    }
+    
+    if ((history[todayKey] || 0) >= DAILY_WATER_GOAL) {
+      return pastStreak + 1;
+    }
+    return pastStreak;
+  };
+
+  const updateWaterData = (newAmount: number) => {
+    setWaterIntake(newAmount);
+    const todayKey = new Date().toDateString();
+    const newHistory = { ...waterHistory, [todayKey]: newAmount };
+    setWaterHistory(newHistory);
+    localStorage.setItem('wellness_water_history', JSON.stringify(newHistory));
+    setWaterStreak(calculateStreak(newHistory));
+  };
+
+  const handleAddWater = () => {
+    updateWaterData(waterIntake + 250);
+  };
+
+  const handleResetWater = () => {
+    updateWaterData(0);
+  };
 
   const startVoiceLogging = () => {
     if (!isPremium) {
@@ -340,19 +406,6 @@ const App: React.FC = () => {
 
   const handleResetSteps = () => {
     setSteps(0);
-  };
-
-  const handleAddWater = () => {
-    const newAmount = waterIntake + 250;
-    setWaterIntake(newAmount);
-    localStorage.setItem('wellness_water_intake', newAmount.toString());
-    localStorage.setItem('wellness_water_date', new Date().toDateString());
-  };
-
-  const handleResetWater = () => {
-    setWaterIntake(0);
-    localStorage.setItem('wellness_water_intake', '0');
-    localStorage.setItem('wellness_water_date', new Date().toDateString());
   };
 
   const addEntry = (entry: FoodEntry) => {
@@ -579,6 +632,8 @@ const App: React.FC = () => {
             isNetCarbs={isNetCarbsMode}
             onResetSteps={handleResetSteps}
             waterIntake={waterIntake}
+            waterGoal={DAILY_WATER_GOAL}
+            streak={waterStreak}
             onAddWater={handleAddWater}
             onResetWater={handleResetWater}
           />

@@ -14,11 +14,13 @@ interface DashboardProps {
   isNetCarbs: boolean;
   onResetSteps: () => void;
   waterIntake: number;
+  waterGoal: number;
+  streak: number;
   onAddWater: () => void;
   onResetWater: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs, onResetSteps, waterIntake, onAddWater, onResetWater }) => {
+const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, isSyncing, onSync, onCameraClick, isNetCarbs, onResetSteps, waterIntake, waterGoal, streak, onAddWater, onResetWater }) => {
   const current = entries.reduce((acc, curr) => ({
     calories: acc.calories + curr.calories,
     carbs: acc.carbs + (isNetCarbs ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
@@ -151,35 +153,69 @@ const Dashboard: React.FC<DashboardProps> = ({ entries, exercises, goal, steps, 
       </div>
 
       {/* Water Intake */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-gray-800 flex items-center gap-2">
-            <span className="text-blue-500 bg-blue-50 p-1.5 rounded-lg">{Icons.Droplet()}</span> 
-            Water Intake
-          </h3>
-          <div className="text-right">
-             <p className="text-xs font-bold text-blue-500 mb-1">{waterIntake} / 2500 ml</p>
-             <button 
-              onClick={onResetWater}
-              className="text-[10px] text-gray-400 hover:text-red-500 font-bold bg-gray-50 px-2 py-1 rounded-lg transition"
-            >
-              RESET
-            </button>
-          </div>
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 relative overflow-hidden">
+        {/* Decorative BG Icon */}
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-blue-500">
+           {Icons.DropletFilled(100)} 
         </div>
-        <div className="flex flex-wrap justify-between items-center px-1 mb-6 gap-2">
+
+        <div className="flex justify-between items-start mb-6 relative z-10">
+           <div>
+              <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                Hydration 
+                <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full font-normal">Daily</span>
+              </h3>
+              <p className="text-[10px] text-gray-400 font-medium mt-1">Goal: {waterGoal}ml</p>
+           </div>
+           {streak > 0 ? (
+             <div className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-full text-xs font-black flex items-center gap-1.5 border border-orange-100 animate-in fade-in zoom-in">
+                {Icons.Flame()} {streak} Day Streak
+             </div>
+           ) : (
+             <div className="bg-gray-50 text-gray-400 px-3 py-1.5 rounded-full text-xs font-bold border border-gray-100">
+                0 Day Streak
+             </div>
+           )}
+        </div>
+
+        {/* Progress Bar */}
+        <div className="flex items-center gap-4 mb-6 relative z-10">
+           <div className="flex-1">
+              <div className="flex justify-between text-xs font-bold mb-2">
+                 <span className="text-blue-600">{Math.round((waterIntake / waterGoal) * 100)}%</span>
+                 <span className="text-gray-300">{waterIntake}ml</span>
+              </div>
+              <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                 <div className="h-full bg-blue-500 rounded-full transition-all duration-500 relative" style={{ width: `${Math.min(100, (waterIntake/waterGoal)*100)}%` }}>
+                    <div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-[pulse_2s_infinite]"></div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Glasses Grid */}
+        <div className="flex flex-wrap justify-center gap-3 mb-6 relative z-10">
            {[...Array(10)].map((_, i) => (
-             <div key={i} className="transition-transform duration-300 hover:scale-110">
+             <div key={i} className="transition-all duration-300 hover:scale-110 active:scale-95">
                 {Icons.Glass(i < (waterIntake / 250))}
              </div>
            ))}
         </div>
-        <button 
-          onClick={onAddWater}
-          className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition flex items-center justify-center gap-2"
-        >
-          {Icons.Droplet()} Add Glass (250ml)
-        </button>
+
+        <div className="flex gap-3 relative z-10">
+          <button 
+            onClick={onResetWater}
+            className="px-4 py-4 rounded-2xl font-bold bg-gray-50 text-gray-400 hover:text-red-500 transition border border-transparent hover:border-red-100"
+          >
+            Reset
+          </button>
+          <button 
+            onClick={onAddWater}
+            className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition flex items-center justify-center gap-2 hover:bg-blue-700"
+          >
+            {Icons.DropletFilled(18)} Add Glass (250ml)
+          </button>
+        </div>
       </div>
     </div>
   );
