@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Icons } from '../constants';
 
@@ -15,6 +16,8 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
     { id: 'goals', label: 'Adjust Your Goals', icon: Icons.Dashboard(), description: 'Change calories and macro splits', color: 'text-purple-600', bg: 'bg-purple-50' },
     { id: 'macros', label: 'Track Macros', icon: Icons.Chart(), description: 'Deep dive into your nutrition balance', color: 'text-green-600', bg: 'bg-green-50' },
     { id: 'planner', label: 'Meal Planner', icon: Icons.Plans(), description: 'Schedule your healthy meals for the week', color: 'text-amber-600', bg: 'bg-amber-50' },
+    { id: 'privacy', label: 'Privacy Policy', icon: Icons.Lock(), description: 'How we handle your data', color: 'text-slate-600', bg: 'bg-slate-50' },
+    { id: 'terms', label: 'Terms of Service', icon: Icons.FileText(), description: 'Usage rules and guidelines', color: 'text-slate-600', bg: 'bg-slate-50' },
   ];
 
   return (

@@ -53,5 +53,7 @@ export enum AppView {
   MEAL_PLANNER = 'meal_planner',
   MACRO_TRACKER = 'macro_tracker',
   CAMERA = 'camera',
-  FAVORITES = 'favorites'
+  FAVORITES = 'favorites',
+  PRIVACY_POLICY = 'privacy_policy',
+  TERMS_OF_SERVICE = 'terms_of_service'
 }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FoodEntry, ExerciseEntry, MacroData, AppView, ChatMessage, Recipe } from './types';
 import { Icons, COLORS } from './constants';
@@ -11,6 +12,7 @@ import MealPlanner from './components/MealPlanner';
 import MacroTracker from './components/MacroTracker';
 import CameraCaptureView from './components/CameraCaptureView';
 import FavoritesView from './components/FavoritesView';
+import LegalView from './components/LegalView';
 import { analyzeFoodImage, createCoachChatSession, parseVoiceCommand, lookupFoodByBarcode } from './services/geminiService';
 
 const DEFAULT_GOAL: MacroData = {
@@ -617,6 +619,10 @@ const App: React.FC = () => {
                   onRemove={handleToggleSaveRecipe} 
                   onClose={() => setActiveView(AppView.MORE)} 
                />;
+      case AppView.PRIVACY_POLICY:
+        return <LegalView type="privacy" onClose={() => setActiveView(AppView.MORE)} />;
+      case AppView.TERMS_OF_SERVICE:
+        return <LegalView type="terms" onClose={() => setActiveView(AppView.MORE)} />;
       case AppView.DASHBOARD:
         // Dashboard always shows TODAY's progress
         const todayData = getForDate(new Date());
@@ -927,6 +933,8 @@ const App: React.FC = () => {
               else if (id === 'macros') setActiveView(AppView.MACRO_TRACKER);
               else if (id === 'vision') setActiveView(AppView.CAMERA);
               else if (id === 'favorites') setActiveView(AppView.FAVORITES);
+              else if (id === 'privacy') setActiveView(AppView.PRIVACY_POLICY);
+              else if (id === 'terms') setActiveView(AppView.TERMS_OF_SERVICE);
             }} 
           />
         );
