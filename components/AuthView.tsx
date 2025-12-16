@@ -9,12 +9,14 @@ interface AuthViewProps {
 }
 
 const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  // Default to false so "Create Account" is shown first
+  const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMockGoogle, setShowMockGoogle] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +33,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         await initializeUser(userCredential.user.uid, email, name);
       }
     } catch (err: any) {
-      // Robust check for API Key error to enable demo mode
       const errorMessage = err.message || err.toString();
+      // Robust check for API Key error to enable demo mode for Email/Pass as well
       if (err.code === 'auth/invalid-api-key' || errorMessage.includes('api-key-not-valid')) {
          console.warn("API Key invalid. Entering Demo Mode.");
          onGuestLogin(name || "Guest User (Demo)");
@@ -50,7 +52,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
          msg = "Password should be at least 6 characters.";
       }
       setError(msg);
-    } finally {
       setLoading(false);
     }
   };
@@ -64,11 +65,13 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
       const user = result.user;
       await initializeUser(user.uid, user.email || '', user.displayName || 'Google User');
     } catch (err: any) {
-      // Robust check for API Key error to enable demo mode
       const errorMessage = err.message || err.toString();
+      
+      // If API key is invalid (Demo environment), show the Mock Google Modal
+      // This solves the issue of "going straight to app" without showing email selection
       if (err.code === 'auth/invalid-api-key' || errorMessage.includes('api-key-not-valid')) {
-          console.warn("API Key invalid. Entering Demo Mode.");
-          onGuestLogin("Google User (Demo)");
+          setLoading(false);
+          setShowMockGoogle(true);
           return;
       }
 
@@ -80,9 +83,17 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
       else if (err.code === 'auth/configuration-not-found') msg = "Google Sign-In not enabled in Firebase Console.";
       
       setError(msg);
-    } finally {
       setLoading(false);
-    }
+    } 
+  };
+
+  const handleMockSelect = (mockName: string) => {
+      setShowMockGoogle(false);
+      setLoading(true);
+      // Simulate network delay for realism
+      setTimeout(() => {
+          onGuestLogin(mockName);
+      }, 1000);
   };
 
   return (
@@ -98,7 +109,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
         <form onSubmit={handleAuth} className="space-y-4">
           {!isLogin && (
-            <div>
+            <div className="animate-entry">
               <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Name</label>
               <input 
                 type="text" 
@@ -136,11 +147,8 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
           </div>
 
           {error && (
-            <div className="bg-red-50 p-3 rounded-xl">
+            <div className="bg-red-50 p-3 rounded-xl animate-in fade-in">
                <p className="text-red-500 text-xs font-bold text-center">{error}</p>
-               {error.includes('API Key') && (
-                 <p className="text-[10px] text-red-400 text-center mt-1">You can continue as guest to test the app.</p>
-               )}
             </div>
           )}
 
@@ -194,14 +202,61 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
             onClick={() => setIsLogin(!isLogin)}
             className="text-xs text-blue-600 font-bold hover:underline pt-2 block w-full"
           >
-            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+            {isLogin ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
           </button>
         </div>
-        
-        <div className="mt-8 p-4 bg-yellow-50 rounded-xl text-[10px] text-yellow-700 leading-tight">
-           <strong>Note:</strong> Ensure "Google" is enabled in Firebase Console &gt; Authentication &gt; Sign-in method.
-        </div>
       </div>
+
+      {/* Simulated Google Login Modal (Displayed when API Key is invalid) */}
+      {showMockGoogle && (
+         <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white rounded-lg w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+               <div className="p-6 pb-4 border-b border-gray-100">
+                  <div className="flex justify-center mb-4">
+                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.52 12.29C23.52 11.43 23.44 10.71 23.3 10H12V14.51H18.47C18.18 15.99 17.25 17.21 15.82 18.16V21.16H19.68C21.94 19.08 23.52 16.03 23.52 12.29Z" fill="#4285F4"/>
+                        <path d="M12 24C15.24 24 17.96 22.92 19.96 21.08L16.1 18.04C15.02 18.78 13.64 19.2 12 19.2C8.86 19.2 6.21 17.08 5.26 14.22H1.27V17.31C3.26 21.27 7.31 24 12 24Z" fill="#34A853"/>
+                        <path d="M5.26 14.22C5.01 13.36 4.87 12.44 4.87 11.51C4.87 10.58 5.01 9.66 5.26 8.8H1.27V11.9C0.46 13.48 0 15.29 0 17.18H5.26V14.22Z" fill="#FBBC05"/>
+                        <path d="M12 4.8C13.77 4.8 15.35 5.41 16.6 6.6L20.06 3.14C17.95 1.17 15.24 0 12 0C7.31 0 3.26 2.73 1.27 6.69L5.26 9.78C6.21 6.92 8.86 4.8 12 4.8Z" fill="#EA4335"/>
+                     </svg>
+                  </div>
+                  <h3 className="text-xl font-medium text-center text-gray-800">Sign in with Google</h3>
+                  <p className="text-center text-sm text-gray-500 mt-1">Choose an account to continue to WellnessWingman</p>
+               </div>
+               <div className="py-2">
+                  <button onClick={() => handleMockSelect(email || "Demo User")} className="w-full px-8 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
+                     <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
+                        {(email || "D")[0].toUpperCase()}
+                     </div>
+                     <div className="text-left">
+                        <p className="font-medium text-sm text-gray-800">{email || "Demo User"}</p>
+                        <p className="text-xs text-gray-500">{email || "demo.user@gmail.com"}</p>
+                     </div>
+                  </button>
+                  <button onClick={() => handleMockSelect("Fitness Enthusiast")} className="w-full px-8 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
+                     <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">F</div>
+                     <div className="text-left">
+                        <p className="font-medium text-sm text-gray-800">Fitness Enthusiast</p>
+                        <p className="text-xs text-gray-500">fit.fanatic@example.com</p>
+                     </div>
+                  </button>
+                  <button onClick={() => handleMockSelect("Guest User")} className="w-full px-8 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                     </div>
+                     <div className="text-left">
+                        <p className="font-medium text-sm text-gray-800">Use another account</p>
+                     </div>
+                  </button>
+               </div>
+               <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
+                  <p className="text-[10px] text-gray-400">
+                     To continue, Google will share your name, email address, and profile picture with WellnessWingman.
+                  </p>
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   );
 };
