@@ -6,9 +6,10 @@ interface MoreTabProps {
   onSelect: (id: string) => void;
   isNetCarbsMode: boolean;
   onToggleNetCarbs: () => void;
+  onLogout: () => void;
 }
 
-const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs }) => {
+const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs, onLogout }) => {
   const menuItems = [
     { id: 'favorites', label: 'Saved Favorites', icon: Icons.Star(), description: 'Your collection of loved recipes', color: 'text-yellow-500', bg: 'bg-yellow-50' },
     { id: 'vision', label: 'Log with AI Vision', icon: Icons.Camera(), description: 'Identify foods and macros from a photo', color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -46,6 +47,21 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
             </div>
           </button>
         ))}
+
+        <button 
+          onClick={onLogout}
+          className="w-full bg-red-50 p-5 rounded-3xl shadow-sm border border-red-100 flex items-center justify-between hover:bg-red-100 active:scale-[0.98] transition group text-left mt-8"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-white text-red-500 p-2.5 rounded-2xl">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </div>
+            <div>
+              <p className="font-bold text-red-600">Log Out</p>
+              <p className="text-[10px] text-red-400 font-medium">Sign out of your account</p>
+            </div>
+          </div>
+        </button>
       </div>
 
       <div className="p-8 text-center">
