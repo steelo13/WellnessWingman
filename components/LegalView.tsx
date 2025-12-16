@@ -67,7 +67,7 @@ const LegalView: React.FC<LegalViewProps> = ({ type, onClose }) => {
       </div>
       
       <div className="text-center text-xs text-gray-400 pt-4">
-        <p>&copy; 2024 WellnessWingman Inc. All rights reserved.</p>
+        <p>&copy; 2025 WellnessWingman Inc. All rights reserved.</p>
       </div>
     </div>
   );
