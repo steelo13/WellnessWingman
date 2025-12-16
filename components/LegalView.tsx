@@ -25,7 +25,7 @@ const LegalView: React.FC<LegalViewProps> = ({ type, onClose }) => {
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 text-sm leading-relaxed text-gray-600 space-y-4">
         {isPrivacy ? (
           <>
-            <p className="font-bold text-gray-800">Last Updated: March 2024</p>
+            <p className="font-bold text-gray-800">Last Updated: December 2025</p>
             <p>Welcome to WellnessWingman. We respect your privacy and are committed to protecting your personal data.</p>
             
             <h3 className="font-bold text-gray-800 text-base mt-4">1. Information We Collect</h3>
@@ -45,7 +45,7 @@ const LegalView: React.FC<LegalViewProps> = ({ type, onClose }) => {
           </>
         ) : (
           <>
-            <p className="font-bold text-gray-800">Last Updated: March 2024</p>
+            <p className="font-bold text-gray-800">Last Updated: December 2025</p>
             <p>Please read these Terms of Service carefully before using WellnessWingman.</p>
 
             <h3 className="font-bold text-gray-800 text-base mt-4">1. Acceptance of Terms</h3>

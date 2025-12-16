@@ -25,25 +25,6 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
       <h1 className="text-2xl font-bold">More Features</h1>
 
       <div className="space-y-4">
-        {/* Special Toggle Mode */}
-        <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl">
-              {Icons.Leaf()}
-            </div>
-            <div>
-              <p className="font-bold text-gray-800">Net Carb Mode</p>
-              <p className="text-[10px] text-gray-400 font-medium">Subtract fiber from total carbs</p>
-            </div>
-          </div>
-          <button 
-            onClick={onToggleNetCarbs}
-            className={`w-12 h-6 rounded-full p-1 transition-colors relative ${isNetCarbsMode ? 'bg-blue-600' : 'bg-gray-200'}`}
-          >
-            <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isNetCarbsMode ? 'translate-x-6' : ''}`} />
-          </button>
-        </div>
-
         {/* Regular Menu Items */}
         {menuItems.map(item => (
           <button 
