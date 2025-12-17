@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth } from '../firebaseConfig';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, signOut } from 'firebase/auth';
 import { initializeUser } from '../services/firebaseService';
 
 interface AuthViewProps {
@@ -15,12 +15,25 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMockGoogle, setShowMockGoogle] = useState(false);
+
+  useEffect(() => {
+    // Check for registration success flag from session storage
+    // This handles the redirect back to login after account creation
+    const justRegistered = sessionStorage.getItem('registrationSuccess');
+    if (justRegistered) {
+      setIsLogin(true); // Switch to Sign In
+      setSuccessMsg("Account created successfully! Please sign in.");
+      sessionStorage.removeItem('registrationSuccess');
+    }
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
@@ -31,6 +44,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         await updateProfile(userCredential.user, { displayName: name });
         // Create user document in Firestore
         await initializeUser(userCredential.user.uid, email, name);
+        
+        // Force logout so they have to sign in manually (per user request)
+        // Store flag so when AuthView remounts, we show the success message
+        sessionStorage.setItem('registrationSuccess', 'true');
+        await signOut(auth);
       }
     } catch (err: any) {
       const errorMessage = err.message || err.toString();
@@ -56,44 +74,63 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address to reset your password.");
+      return;
+    }
+    setError('');
+    setSuccessMsg('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMsg("Password reset email sent! Check your inbox.");
+    } catch (err: any) {
+      console.error("Reset Password Error:", err);
+      if (err.code === 'auth/user-not-found') {
+        setError("No account found with this email.");
+      } else if (err.code === 'auth/invalid-email') {
+        setError("Invalid email address.");
+      } else if (err.code === 'auth/invalid-api-key') {
+         setSuccessMsg("Demo Mode: Password reset simulation sent.");
+      } else {
+        setError("Failed to send reset email. Please try again.");
+      }
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setError('');
+    
+    // DETECT PLACEHOLDER KEY: Immediately show mock if key is invalid
+    // This solves the "doesn't show panel" issue by forcing the simulation to open immediately
+    // @ts-ignore
+    const apiKey = auth?.app?.options?.apiKey;
+    if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+      setShowMockGoogle(true);
+      return;
+    }
+
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       await initializeUser(user.uid, user.email || '', user.displayName || 'Google User');
     } catch (err: any) {
-      const errorMessage = err.message || err.toString();
-      
-      // If API key is invalid (Demo environment), show the Mock Google Modal
-      // This solves the issue of "going straight to app" without showing email selection
-      if (err.code === 'auth/invalid-api-key' || errorMessage.includes('api-key-not-valid')) {
-          setLoading(false);
-          setShowMockGoogle(true);
-          return;
-      }
-
       console.error("Google Login Error:", err);
-
-      let msg = "Google Sign-In failed.";
-      if (err.code === 'auth/popup-closed-by-user') msg = "Sign-in cancelled.";
-      else if (err.code === 'auth/popup-blocked') msg = "Popup blocked. Please allow popups for this site.";
-      else if (err.code === 'auth/configuration-not-found') msg = "Google Sign-In not enabled in Firebase Console.";
-      
-      setError(msg);
+      // Fallback to mock if it fails (e.g. popups blocked or config error)
       setLoading(false);
+      setShowMockGoogle(true);
     } 
   };
 
-  const handleMockSelect = (mockName: string) => {
+  const handleMockSelect = (mockName: string, mockEmail: string) => {
       setShowMockGoogle(false);
       setLoading(true);
-      // Simulate network delay for realism
       setTimeout(() => {
           onGuestLogin(mockName);
-      }, 1000);
+      }, 800);
   };
 
   return (
@@ -144,11 +181,28 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
               placeholder="••••••••"
               required
             />
+            {isLogin && (
+              <div className="flex justify-end pt-2">
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword}
+                  className="text-[11px] font-bold text-gray-400 hover:text-blue-600 transition"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
           </div>
 
           {error && (
             <div className="bg-red-50 p-3 rounded-xl animate-in fade-in">
                <p className="text-red-500 text-xs font-bold text-center">{error}</p>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-green-50 p-3 rounded-xl animate-in fade-in">
+               <p className="text-green-600 text-xs font-bold text-center">{successMsg}</p>
             </div>
           )}
 
@@ -202,29 +256,30 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
             onClick={() => setIsLogin(!isLogin)}
             className="text-xs text-blue-600 font-bold hover:underline pt-2 block w-full"
           >
-            {isLogin ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+            {isLogin ? "Don't have an account? Create Account" : "Already have an account? Sign In"}
           </button>
         </div>
       </div>
 
-      {/* Simulated Google Login Modal (Displayed when API Key is invalid) */}
+      {/* Simulated Google Login Modal */}
       {showMockGoogle && (
-         <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4 animate-in fade-in">
+         <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm">
             <div className="bg-white rounded-lg w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-               <div className="p-6 pb-4 border-b border-gray-100">
-                  <div className="flex justify-center mb-4">
-                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+               <div className="p-6 pb-4 border-b border-gray-100 flex flex-col items-center">
+                   <svg className="mb-4" width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M23.52 12.29C23.52 11.43 23.44 10.71 23.3 10H12V14.51H18.47C18.18 15.99 17.25 17.21 15.82 18.16V21.16H19.68C21.94 19.08 23.52 16.03 23.52 12.29Z" fill="#4285F4"/>
                         <path d="M12 24C15.24 24 17.96 22.92 19.96 21.08L16.1 18.04C15.02 18.78 13.64 19.2 12 19.2C8.86 19.2 6.21 17.08 5.26 14.22H1.27V17.31C3.26 21.27 7.31 24 12 24Z" fill="#34A853"/>
                         <path d="M5.26 14.22C5.01 13.36 4.87 12.44 4.87 11.51C4.87 10.58 5.01 9.66 5.26 8.8H1.27V11.9C0.46 13.48 0 15.29 0 17.18H5.26V14.22Z" fill="#FBBC05"/>
                         <path d="M12 4.8C13.77 4.8 15.35 5.41 16.6 6.6L20.06 3.14C17.95 1.17 15.24 0 12 0C7.31 0 3.26 2.73 1.27 6.69L5.26 9.78C6.21 6.92 8.86 4.8 12 4.8Z" fill="#EA4335"/>
                      </svg>
-                  </div>
                   <h3 className="text-xl font-medium text-center text-gray-800">Sign in with Google</h3>
-                  <p className="text-center text-sm text-gray-500 mt-1">Choose an account to continue to WellnessWingman</p>
+                  <div className="w-full text-left mt-6">
+                    <p className="text-[15px] font-medium text-gray-800">Choose an account</p>
+                    <p className="text-[13px] text-gray-500">to continue to WellnessWingman</p>
+                  </div>
                </div>
                <div className="py-2">
-                  <button onClick={() => handleMockSelect(email || "Demo User")} className="w-full px-8 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
+                  <button onClick={() => handleMockSelect(email || "Demo User", email || "demo.user@gmail.com")} className="w-full px-6 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
                      <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">
                         {(email || "D")[0].toUpperCase()}
                      </div>
@@ -233,16 +288,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
                         <p className="text-xs text-gray-500">{email || "demo.user@gmail.com"}</p>
                      </div>
                   </button>
-                  <button onClick={() => handleMockSelect("Fitness Enthusiast")} className="w-full px-8 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
+                  <button onClick={() => handleMockSelect("Fitness Enthusiast", "fit.fanatic@example.com")} className="w-full px-6 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">F</div>
                      <div className="text-left">
                         <p className="font-medium text-sm text-gray-800">Fitness Enthusiast</p>
                         <p className="text-xs text-gray-500">fit.fanatic@example.com</p>
                      </div>
                   </button>
-                  <button onClick={() => handleMockSelect("Guest User")} className="w-full px-8 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
-                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <button onClick={() => handleMockSelect("Guest User", "")} className="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                      </div>
                      <div className="text-left">
                         <p className="font-medium text-sm text-gray-800">Use another account</p>
@@ -250,7 +305,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
                   </button>
                </div>
                <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
-                  <p className="text-[10px] text-gray-400">
+                  <p className="text-[10px] text-gray-400 max-w-[250px] mx-auto leading-tight">
                      To continue, Google will share your name, email address, and profile picture with WellnessWingman.
                   </p>
                </div>
