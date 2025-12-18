@@ -823,6 +823,7 @@ const App: React.FC = () => {
               isPremium={isPremium} 
               onUpdateGuestName={setGuestName} 
               onClose={() => setMoreSubView('menu')}
+              onUpgrade={() => setShowPremiumModal(true)}
               entries={entries}
               exercises={exercises}
               goal={userGoal}
