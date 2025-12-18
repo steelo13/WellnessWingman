@@ -86,24 +86,22 @@
         scrollbar-width: none;
       }
       
-      /* Interactive Custom Scrollbar - "The Knob" */
+      /* Interactive Custom Scrollbar - Minimized */
       .custom-scrollbar::-webkit-scrollbar {
-        width: 20px; /* Wide touch target for easy grabbing */
+        width: 4px; /* Much smaller width */
       }
       .custom-scrollbar::-webkit-scrollbar-track {
         background-color: transparent;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: rgba(100, 116, 139, 0.5); /* Visible slate knob */
-        border-radius: 20px;
-        border: 6px solid transparent; /* Creates padding so the visible knob acts like a floating pill */
-        background-clip: content-box; /* Only color the content, not border area */
-        min-height: 40px; /* Minimum size for the knob */
+        background-color: rgba(100, 116, 139, 0.3); /* Subtler slate knob */
+        border-radius: 10px;
+        border: none; /* Removed padding/borders */
+        min-height: 30px; 
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover,
       .custom-scrollbar::-webkit-scrollbar-thumb:active {
-        background-color: rgba(71, 85, 105, 0.8); /* Darker and more solid when touching */
-        border-width: 5px; /* Slightly larger on interaction */
+        background-color: rgba(71, 85, 105, 0.6);
       }
 
       /* Barcode Scanner Fixes */
