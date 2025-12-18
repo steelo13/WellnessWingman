@@ -1,6 +1,6 @@
 
 import { db } from '../firebaseConfig';
-import { collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, updateDoc, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { FoodEntry, ExerciseEntry, Recipe, MacroData } from '../types';
 
 // Collection references
@@ -33,29 +33,38 @@ export const initializeUser = async (uid: string, email: string, name: string) =
 };
 
 export const fetchUserData = async (uid: string) => {
-  const userRef = getUserRef(uid);
-  const userSnap = await getDoc(userRef);
-  const userData = userSnap.data();
+  try {
+    const userRef = getUserRef(uid);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
 
-  // Fetch Subcollections
-  const entriesQ = query(getEntriesRef(uid), orderBy('timestamp', 'desc'));
-  const exercisesQ = query(getExercisesRef(uid), orderBy('timestamp', 'desc'));
-  const recipesSnap = await getDocs(getRecipesRef(uid));
+    // Fetch Subcollections
+    const entriesQ = query(getEntriesRef(uid), orderBy('timestamp', 'desc'));
+    const exercisesQ = query(getExercisesRef(uid), orderBy('timestamp', 'desc'));
+    const recipesSnap = await getDocs(getRecipesRef(uid));
 
-  const entriesSnap = await getDocs(entriesQ);
-  const exercisesSnap = await getDocs(exercisesQ);
+    const entriesSnap = await getDocs(entriesQ);
+    const exercisesSnap = await getDocs(exercisesQ);
 
-  return {
-    settings: userData || {},
-    entries: entriesSnap.docs.map(d => ({ ...d.data(), id: d.id } as FoodEntry)),
-    exercises: exercisesSnap.docs.map(d => ({ ...d.data(), id: d.id } as ExerciseEntry)),
-    savedRecipes: recipesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Recipe))
-  };
+    return {
+      settings: userData || {},
+      entries: entriesSnap.docs.map(d => ({ ...d.data(), id: d.id } as FoodEntry)),
+      exercises: exercisesSnap.docs.map(d => ({ ...d.data(), id: d.id } as ExerciseEntry)),
+      savedRecipes: recipesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Recipe))
+    };
+  } catch (error: any) {
+    console.warn("Firebase fetch warning (likely offline or sync delay):", error.message);
+    // Return empty state if we really can't get anything (persistence will usually handle this)
+    return {
+      settings: {},
+      entries: [],
+      exercises: [],
+      savedRecipes: []
+    };
+  }
 };
 
 export const addFoodEntryToDb = async (uid: string, entry: FoodEntry) => {
-  // Use specific ID if provided, otherwise auto-ID (but we usually generate IDs in frontend)
-  // For simplicity with current app structure, we use setDoc with entry.id
   await setDoc(doc(db, 'users', uid, 'entries', entry.id), entry);
 };
 

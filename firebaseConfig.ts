@@ -1,17 +1,16 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
-// TODO: Replace with your actual Firebase project configuration
-// You can get this from your Firebase Console > Project Settings
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "00000000000",
-  appId: "1:00000000000:web:0000000000000"
+  apiKey: "AIzaSyBkfmetIiPKYDThD3p_bdiLmd4TN6q0JO0",
+  authDomain: "wellness-wingman-working.firebaseapp.com",
+  projectId: "wellness-wingman-working",
+  storageBucket: "wellness-wingman-working.firebasestorage.app",
+  messagingSenderId: "743037096204",
+  appId: "1:743037096204:web:d4d10b983c326b5c4cb929",
+  measurementId: "G-H4MKYZTQEQ"
 };
 
 // Initialize Firebase
@@ -19,5 +18,8 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize services
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const analytics = {}; // Analytics not fully set up in this demo
+
+// Initialize Firestore with offline persistence
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
