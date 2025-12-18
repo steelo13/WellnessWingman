@@ -825,6 +825,8 @@ const App: React.FC = () => {
               onClose={() => setMoreSubView('menu')}
               entries={entries}
               exercises={exercises}
+              goal={userGoal}
+              waterStreak={waterStreak}
             />
           );
         }
