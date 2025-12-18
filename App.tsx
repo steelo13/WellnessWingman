@@ -17,6 +17,7 @@ import CameraCaptureView from './components/CameraCaptureView';
 import FavoritesView from './components/FavoritesView';
 import LegalView from './components/LegalView';
 import AuthView from './components/AuthView';
+import ProfileView from './components/ProfileView';
 import { analyzeFoodImage, createCoachChatSession, parseVoiceCommand, lookupFoodByBarcode } from './services/geminiService';
 
 const DEFAULT_GOAL: MacroData = {
@@ -45,7 +46,7 @@ const App: React.FC = () => {
 
   // App State
   const [activeView, setActiveView] = useState<AppView>(AppView.DASHBOARD);
-  const [moreSubView, setMoreSubView] = useState<'menu' | 'goals'>('menu');
+  const [moreSubView, setMoreSubView] = useState<'menu' | 'goals' | 'profile'>('menu');
   const [isNetCarbsMode, setIsNetCarbsMode] = useState(false);
   
   // Data State
@@ -814,6 +815,19 @@ const App: React.FC = () => {
             <GoalsSettings currentGoal={userGoal} onSave={saveGoal} />
           );
         }
+        if (moreSubView === 'profile') {
+          return (
+            <ProfileView 
+              user={user} 
+              guestName={guestName} 
+              isPremium={isPremium} 
+              onUpdateGuestName={setGuestName} 
+              onClose={() => setMoreSubView('menu')}
+              entries={entries}
+              exercises={exercises}
+            />
+          );
+        }
         return (
           <MoreTab 
             user={user}
@@ -824,6 +838,7 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             onSelect={(id) => {
               if (id === 'goals') setMoreSubView('goals');
+              else if (id === 'profile') setMoreSubView('profile');
               else if (id === 'barcode') setActiveView(AppView.SCANNER);
               else if (id === 'planner') setActiveView(AppView.MEAL_PLANNER);
               else if (id === 'macros') setActiveView(AppView.MACRO_TRACKER);
