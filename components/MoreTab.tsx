@@ -1,15 +1,19 @@
 
 import React from 'react';
 import { Icons } from '../constants';
+import { User } from 'firebase/auth';
 
 interface MoreTabProps {
   onSelect: (id: string) => void;
   isNetCarbsMode: boolean;
   onToggleNetCarbs: () => void;
   onLogout: () => void;
+  user: User | null;
+  isPremium: boolean;
+  guestName: string;
 }
 
-const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs, onLogout }) => {
+const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs, onLogout, user, isPremium, guestName }) => {
   const menuItems = [
     { id: 'favorites', label: 'Saved Favorites', icon: Icons.Star(), description: 'Your collection of loved recipes', color: 'text-yellow-500', bg: 'bg-yellow-50' },
     { id: 'vision', label: 'Log with AI Vision', icon: Icons.Camera(), description: 'Identify foods and macros from a photo', color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -21,9 +25,42 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
     { id: 'terms', label: 'Terms of Service', icon: Icons.FileText(), description: 'Usage rules and guidelines', color: 'text-slate-600', bg: 'bg-slate-50' },
   ];
 
+  const displayName = user?.displayName || user?.email?.split('@')[0] || guestName;
+  const displayEmail = user?.email || "Guest Account";
+  const avatarUrl = user?.photoURL || `https://placehold.co/120x120/0066FF/ffffff?text=${displayName[0].toUpperCase()}`;
+
   return (
     <div className="pb-24 pt-6 px-4 space-y-6">
-      <h1 className="text-2xl font-bold">More Features</h1>
+      <h1 className="text-2xl font-bold">More</h1>
+
+      {/* User Profile Section */}
+      <button 
+        onClick={() => onSelect('profile')}
+        className="w-full bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 flex items-center gap-4 hover:bg-gray-50 active:scale-[0.98] transition group text-left"
+      >
+        <div className="relative">
+          <img 
+            src={avatarUrl} 
+            alt="Profile" 
+            className="w-16 h-16 rounded-2xl object-cover shadow-inner border border-gray-100"
+          />
+          {isPremium && (
+            <div className="absolute -top-2 -right-2 bg-amber-400 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow-sm border border-white">
+              PRO
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-black text-gray-800 leading-tight">{displayName}</h2>
+            {isPremium && <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter">Premium</span>}
+          </div>
+          <p className="text-xs text-gray-400 font-medium mt-0.5 truncate max-w-[180px]">{displayEmail}</p>
+        </div>
+        <div className="text-gray-300 group-hover:text-blue-600 group-hover:translate-x-1 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+      </button>
 
       <div className="space-y-4">
         {/* Regular Menu Items */}

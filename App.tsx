@@ -253,26 +253,8 @@ const App: React.FC = () => {
   }, []);
 
   const calculateStreak = (history: Record<string, number>) => {
-    let streak = 0;
     const today = new Date();
     const todayKey = today.toDateString();
-    
-    // Check if today is met
-    if ((history[todayKey] || 0) >= DAILY_WATER_GOAL) {
-        streak++;
-    }
-
-    // Check past days
-    for (let i = 1; i < 365; i++) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const key = d.toDateString();
-        if ((history[key] || 0) >= DAILY_WATER_GOAL) {
-            streak++;
-        } else {
-            break; 
-        }
-    }
     
     // Re-calculating correctly for gaps:
     let pastStreak = 0;
@@ -643,7 +625,6 @@ const App: React.FC = () => {
           carbs: acc.carbs + (isNetCarbsMode ? (curr.macros.carbs - (curr.macros.fiber || 0)) : curr.macros.carbs),
           fat: acc.fat + curr.macros.fat,
         }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-        const dailyBurned = dailyExercises.reduce((acc, ex) => acc + ex.caloriesBurned, 0);
 
         return (
           <div className="pb-24 pt-6 px-4">
@@ -835,6 +816,9 @@ const App: React.FC = () => {
         }
         return (
           <MoreTab 
+            user={user}
+            isPremium={isPremium}
+            guestName={guestName}
             isNetCarbsMode={isNetCarbsMode}
             onToggleNetCarbs={toggleNetCarbs}
             onLogout={handleLogout}
@@ -878,7 +862,7 @@ const App: React.FC = () => {
           {!isPremium && (
             <button onClick={() => setShowPremiumModal(true)} className="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">UPGRADE</button>
           )}
-          <img src="https://placehold.co/80x80/0066FF/ffffff?text=WW" alt="WellnessWingman Logo" className="h-10 w-10 object-contain rounded-lg" />
+          <img src={user?.photoURL || "https://placehold.co/80x80/0066FF/ffffff?text=WW"} alt="WellnessWingman Logo" className="h-10 w-10 object-contain rounded-lg" />
         </div>
       </header>
 
