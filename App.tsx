@@ -149,6 +149,16 @@ const App: React.FC = () => {
     let unsubscribe = () => {};
     try {
       unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        // --- EMAIL VERIFICATION CHECK ---
+        // If a user exists but hasn't verified their email, we DON'T log them in at the app level.
+        // The only exception is Google/Social login which is usually verified, but we trust AuthView
+        // to have handled the forced signOut if they were unverified.
+        if (currentUser && !currentUser.emailVerified && !isGuest) {
+          setUser(null);
+          setAuthLoading(false);
+          return;
+        }
+
         setUser(currentUser);
         if (currentUser) {
           // Fetch User Data from Firebase

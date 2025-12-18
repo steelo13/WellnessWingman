@@ -8,7 +8,8 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   sendPasswordResetEmail, 
-  signOut 
+  signOut,
+  sendEmailVerification
 } from 'firebase/auth';
 
 interface AuthViewProps {
@@ -16,7 +17,7 @@ interface AuthViewProps {
 }
 
 const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
-  const [isLogin, setIsLogin] = useState(true); // Default to login as requested
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -27,16 +28,13 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showMockGoogle, setShowMockGoogle] = useState(false);
   
+  // Verification State
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const justRegistered = sessionStorage.getItem('registrationSuccess');
-    if (justRegistered) {
-      setIsLogin(true);
-      setSuccessMsg("Account created! Please sign in.");
-      sessionStorage.removeItem('registrationSuccess');
-    }
-  }, []);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,33 +61,80 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
     try {
       if (isLogin) {
-        try {
-          await signInWithEmailAndPassword(auth, email, password);
-        } catch (err: any) {
-          throw new Error("Password or Email Incorrect");
+        // --- LOGIN FLOW ---
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        if (!user.emailVerified) {
+          setPendingEmail(user.email || email);
+          // We stay signed in for now so 'Resend' works on the next screen
+          setVerificationPending(true);
+          setLoading(false);
+          return;
         }
       } else {
+        // --- REGISTER FLOW ---
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await updateProfile(user, { displayName: name });
+        
         try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          await updateProfile(userCredential.user, { 
-            displayName: name
-          });
-          
-          sessionStorage.setItem('registrationSuccess', 'true');
-          await signOut(auth);
-          setIsLogin(true);
-        } catch (err: any) {
-          if (err.code === 'auth/email-already-in-use') {
-            throw new Error("User already exists. Sign in?");
-          }
-          throw err;
+          await sendEmailVerification(user);
+        } catch (vErr) {
+          console.warn("Verification email rate limit or error:", vErr);
         }
+        
+        setPendingEmail(email);
+        setVerificationPending(true);
+        setLoading(false);
       }
     } catch (err: any) {
       console.error("Auth Error:", err);
-      setError(err.message || "Authentication failed.");
+      let msg = err.message;
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        msg = "Password or Email Incorrect";
+      } else if (err.code === 'auth/email-already-in-use') {
+        msg = "User already exists. Sign in?";
+      }
+      setError(msg || "Authentication failed.");
       setLoading(false);
     }
+  };
+
+  const handleResendEmail = async () => {
+    if (!auth.currentUser) {
+      setError("Session expired. Please log in to resend.");
+      setVerificationPending(false);
+      return;
+    }
+    
+    setResendLoading(true);
+    setResendSuccess('');
+    setError('');
+
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setResendSuccess("Verification email resent!");
+    } catch (err: any) {
+      if (err.code === 'auth/too-many-requests') {
+        setError("Please wait a moment before requesting another email.");
+      } else {
+        setError("Failed to resend. Please try again later.");
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleBackToLogin = async () => {
+    await signOut(auth);
+    setVerificationPending(false);
+    setIsLogin(true);
+    setPendingEmail('');
+    setError('');
+    setSuccessMsg('');
+    setResendSuccess('');
   };
 
   const handleForgotPassword = async () => {
@@ -129,29 +174,90 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
       }, 800);
   };
 
+  // --- VERIFICATION SCREEN ---
+  if (verificationPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
+        <div className="w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-10 border border-blue-50 text-center animate-in zoom-in-95 duration-300">
+          <div className="inline-block p-5 rounded-3xl bg-blue-50 text-blue-600 mb-8 shadow-inner">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </div>
+          <h2 className="text-3xl font-black text-gray-800 mb-4 tracking-tight">Check your inbox</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
+            We have sent a verification email to <span className="text-blue-600 font-bold block mt-2 text-base">{pendingEmail}</span> Verify it and log in to start your journey.
+          </p>
+
+          {resendSuccess && (
+            <div className="bg-green-50 text-green-600 p-3 rounded-xl text-xs font-bold mb-6 animate-in fade-in">
+              {resendSuccess}
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 text-red-500 p-3 rounded-xl text-xs font-bold mb-6 animate-in fade-in">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button 
+              onClick={handleBackToLogin}
+              className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-95 transition-all hover:bg-blue-700"
+            >
+              Go to Login
+            </button>
+            
+            <button 
+              onClick={handleResendEmail}
+              disabled={resendLoading}
+              className="w-full text-blue-500 font-black py-3 text-xs tracking-widest uppercase hover:text-blue-700 transition flex items-center justify-center gap-2"
+            >
+              {resendLoading ? (
+                <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+              ) : null}
+              Resend Email
+            </button>
+
+            <button 
+              onClick={async () => {
+                await signOut(auth);
+                setVerificationPending(false);
+                setIsLogin(false);
+                setPendingEmail('');
+              }}
+              className="w-full text-gray-400 font-bold py-2 text-[10px] tracking-widest uppercase hover:text-gray-600 transition"
+            >
+              Wrong email address?
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8 border border-blue-50">
-        <div className="text-center mb-6">
-          <div className="inline-block p-3 rounded-2xl bg-blue-50 text-blue-600 mb-4">
+      <div className="w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 border border-blue-50">
+        <div className="text-center mb-8">
+          <div className="inline-block p-4 rounded-3xl bg-blue-50 text-blue-600 mb-4 shadow-sm">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
           </div>
           <h1 className="text-3xl font-black text-gray-800 tracking-tight">WellnessWingman</h1>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2">Elite AI Health Coach</p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex bg-gray-50 p-1 rounded-2xl mb-8">
+        <div className="flex bg-gray-50 p-1.5 rounded-2xl mb-8 border border-gray-100 shadow-inner">
           <button 
             onClick={() => { setIsLogin(true); setError(''); setSuccessMsg(''); }}
-            className={`flex-1 py-2 text-sm font-black rounded-xl transition-all ${isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${isLogin ? 'bg-white text-blue-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
           >
-            Sign In
+            SIGN IN
           </button>
           <button 
             onClick={() => { setIsLogin(false); setError(''); setSuccessMsg(''); }}
-            className={`flex-1 py-2 text-sm font-black rounded-xl transition-all ${!isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`flex-1 py-3 text-xs font-black rounded-xl transition-all ${!isLogin ? 'bg-white text-blue-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
           >
-            Register
+            REGISTER
           </button>
         </div>
 
@@ -161,14 +267,14 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
               <div className="flex flex-col items-center">
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-300 transition-all"
+                  className="w-24 h-24 bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer overflow-hidden group hover:border-blue-300 transition-all shadow-inner"
                 >
                   {photoPreview ? (
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                   ) : (
                     <>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 group-hover:text-blue-400"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                      <span className="text-[8px] font-black text-gray-300 mt-1 uppercase">Photo</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 group-hover:text-blue-400 transition-colors"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                      <span className="text-[10px] font-black text-gray-300 mt-2 uppercase tracking-widest transition-colors group-hover:text-blue-400">Add Photo</span>
                     </>
                   )}
                 </div>
@@ -176,12 +282,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Full Name</label>
+                <label className="block text-[10px] font-black text-gray-400 uppercase ml-1 mb-1.5 tracking-widest">Full Name</label>
                 <input 
                   type="text" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                   placeholder="Your Name"
                   required={!isLogin}
                 />
@@ -190,24 +296,24 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
           )}
           
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Email</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase ml-1 mb-1.5 tracking-widest">Email Address</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition"
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
               placeholder="hello@example.com"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Password</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase ml-1 mb-1.5 tracking-widest">Password</label>
             <input 
               type="password" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition"
+              className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
               placeholder="••••••••"
               required
             />
@@ -215,12 +321,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
           {!isLogin && (
             <div className="animate-entry">
-              <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Repeat Password</label>
+              <label className="block text-[10px] font-black text-gray-400 uppercase ml-1 mb-1.5 tracking-widest">Confirm Password</label>
               <input 
                 type="password" 
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition"
+                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                 placeholder="••••••••"
                 required
               />
@@ -229,7 +335,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
           {isLogin && (
             <div className="flex justify-end">
-              <button type="button" onClick={handleForgotPassword} className="text-[11px] font-bold text-gray-400 hover:text-blue-600 transition">
+              <button type="button" onClick={handleForgotPassword} className="text-[10px] font-black text-blue-500 hover:text-blue-700 transition tracking-widest uppercase">
                 Forgot Password?
               </button>
             </div>
@@ -238,37 +344,37 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
           {error && (
             <div 
               onClick={() => error === "User already exists. Sign in?" && setIsLogin(true)}
-              className={`p-3 rounded-xl animate-in fade-in cursor-pointer transition-colors ${error === "User already exists. Sign in?" ? "bg-blue-50 hover:bg-blue-100" : "bg-red-50"}`}
+              className={`p-4 rounded-2xl animate-in fade-in cursor-pointer transition-all border ${error === "User already exists. Sign in?" ? "bg-blue-50 border-blue-100 text-blue-600 hover:bg-blue-100" : "bg-red-50 border-red-100 text-red-500"}`}
             >
-               <p className={`text-xs font-bold text-center ${error === "User already exists. Sign in?" ? "text-blue-600" : "text-red-500"}`}>{error}</p>
+               <p className="text-xs font-bold text-center leading-relaxed">{error}</p>
             </div>
           )}
 
           {successMsg && (
-            <div className="bg-green-50 p-3 rounded-xl animate-in fade-in">
-               <p className="text-green-600 text-xs font-bold text-center">{successMsg}</p>
+            <div className="bg-green-50 border border-green-100 p-4 rounded-2xl animate-in fade-in">
+               <p className="text-green-600 text-xs font-bold text-center leading-relaxed">{successMsg}</p>
             </div>
           )}
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition flex justify-center mt-4"
+            className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-95 transition-all flex justify-center mt-6 hover:bg-blue-700 disabled:opacity-50"
           >
             {loading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              isLogin ? 'Sign In' : 'Create Account'
+              isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'
             )}
           </button>
         </form>
 
-        <div className="mt-8 pt-8 border-t border-gray-100 space-y-3 text-center">
+        <div className="mt-10 pt-8 border-t border-gray-50 space-y-4 text-center">
           <button 
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full bg-white text-gray-700 font-bold py-3 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition flex items-center justify-center gap-2"
+            className="w-full bg-white text-gray-700 font-bold py-4 rounded-2xl border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M23.52 12.29C23.52 11.43 23.44 10.71 23.3 10H12V14.51H18.47C18.18 15.99 17.25 17.21 15.82 18.16V21.16H19.68C21.94 19.08 23.52 16.03 23.52 12.29Z" fill="#4285F4"/>
@@ -282,7 +388,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
           <button 
             onClick={() => onGuestLogin()}
             disabled={loading}
-            className="w-full bg-gray-50 text-gray-500 font-bold py-3 rounded-xl border border-gray-100 hover:bg-gray-100 active:scale-95 transition"
+            className="w-full bg-gray-50 text-gray-500 font-bold py-4 rounded-2xl border border-transparent hover:bg-gray-100 hover:text-gray-600 active:scale-95 transition-all"
           >
             Explore as Guest
           </button>
@@ -291,22 +397,22 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
       {showMockGoogle && (
          <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4 animate-in fade-in backdrop-blur-sm">
-            <div className="bg-white rounded-lg w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-               <div className="p-6 pb-4 border-b border-gray-100 flex flex-col items-center">
-                  <h3 className="text-xl font-medium text-center text-gray-800">Demo Sign in with Google</h3>
+            <div className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+               <div className="p-8 pb-4 border-b border-gray-100 flex flex-col items-center">
+                  <h3 className="text-xl font-black text-center text-gray-800">Demo Account</h3>
                   <div className="w-full text-left mt-6">
-                    <p className="text-[15px] font-medium text-gray-800">Choose an account</p>
+                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Choose an account</p>
                   </div>
                </div>
                <div className="py-2">
-                  <button onClick={() => handleMockSelect(name || "Demo User")} className="w-full px-6 py-3 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50">
-                     <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-sm">D</div>
-                     <div className="text-left">
-                        <p className="font-medium text-sm text-gray-800">Demo User</p>
-                        <p className="text-xs text-gray-500">demo.user@gmail.com</p>
+                  <button onClick={() => handleMockSelect(name || "Demo User")} className="w-full px-8 py-5 flex items-center gap-4 hover:bg-gray-50 transition border-b border-gray-50 text-left">
+                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md">D</div>
+                     <div>
+                        <p className="font-black text-base text-gray-800">Demo User</p>
+                        <p className="text-xs text-gray-400 font-medium">demo.user@gmail.com</p>
                      </div>
                   </button>
-                  <button onClick={() => setShowMockGoogle(false)} className="w-full px-6 py-4 text-center text-sm font-bold text-gray-400 hover:bg-gray-50">Cancel</button>
+                  <button onClick={() => setShowMockGoogle(false)} className="w-full px-6 py-5 text-center text-xs font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest">Cancel</button>
                </div>
             </div>
          </div>
