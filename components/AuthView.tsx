@@ -33,6 +33,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
   const [pendingEmail, setPendingEmail] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState('');
+
+  // Forgot Password State
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [resetLinkSent, setResetLinkSent] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +72,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         
         if (!user.emailVerified) {
           setPendingEmail(user.email || email);
-          // We stay signed in for now so 'Resend' works on the next screen
           setVerificationPending(true);
           setLoading(false);
           return;
@@ -128,8 +132,10 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
   };
 
   const handleBackToLogin = async () => {
-    await signOut(auth);
+    if (auth.currentUser) await signOut(auth);
     setVerificationPending(false);
+    setForgotPasswordMode(false);
+    setResetLinkSent(false);
     setIsLogin(true);
     setPendingEmail('');
     setError('');
@@ -137,18 +143,21 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
     setResendSuccess('');
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email address to reset your password.");
+  const handleSendResetLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      setError("Please enter your email address.");
       return;
     }
     setError('');
-    setSuccessMsg('');
+    setLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccessMsg("Password reset email sent! Check your inbox.");
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetLinkSent(true);
     } catch (err: any) {
-      setError("Failed to send reset email. Please try again.");
+      setError("Failed to send reset link. Check if the email is correct.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -174,7 +183,84 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
       }, 800);
   };
 
-  // --- VERIFICATION SCREEN ---
+  // --- RESET LINK SENT SUCCESS ---
+  if (resetLinkSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
+        <div className="w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-10 border border-blue-50 text-center animate-in zoom-in-95 duration-300">
+          <div className="inline-block p-5 rounded-3xl bg-green-50 text-green-600 mb-8 shadow-inner">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <h2 className="text-3xl font-black text-gray-800 mb-4 tracking-tight">Email Sent</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-10 px-2">
+            We sent you a password change link to <span className="text-blue-600 font-bold block mt-2 text-base">{resetEmail}</span>
+          </p>
+          <button 
+            onClick={handleBackToLogin}
+            className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-95 transition-all hover:bg-blue-700"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- FORGOT PASSWORD INPUT ---
+  if (forgotPasswordMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
+        <div className="w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 border border-blue-50 animate-in zoom-in-95 duration-300">
+          <div className="text-center mb-8">
+            <div className="inline-block p-4 rounded-3xl bg-blue-50 text-blue-600 mb-4 shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h2 className="text-3xl font-black text-gray-800 tracking-tight">Reset Password</h2>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-[0.2em] mt-2">Recovery Center</p>
+          </div>
+
+          <form onSubmit={handleSendResetLink} className="space-y-6">
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase ml-1 mb-1.5 tracking-widest">Your Account Email</label>
+              <input 
+                type="email" 
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+                placeholder="hello@example.com"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-100 p-4 rounded-2xl text-red-500 text-xs font-bold text-center">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4 pt-2">
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 active:scale-95 transition-all flex justify-center hover:bg-blue-700"
+              >
+                {loading ? <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" /> : 'Get Reset Link'}
+              </button>
+              <button 
+                type="button"
+                onClick={handleBackToLogin}
+                className="w-full text-gray-400 font-bold py-2 text-[10px] tracking-widest uppercase hover:text-gray-600 transition text-center"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- VERIFICATION PENDING ---
   if (verificationPending) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
@@ -235,6 +321,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
     );
   }
 
+  // --- MAIN AUTH FORM ---
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[#effdf5]">
       <div className="w-full max-w-sm bg-white rounded-[40px] shadow-2xl p-8 border border-blue-50">
@@ -335,7 +422,15 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
 
           {isLogin && (
             <div className="flex justify-end">
-              <button type="button" onClick={handleForgotPassword} className="text-[10px] font-black text-blue-500 hover:text-blue-700 transition tracking-widest uppercase">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setResetEmail(email);
+                  setForgotPasswordMode(true);
+                  setError('');
+                }} 
+                className="text-[10px] font-black text-blue-500 hover:text-blue-700 transition tracking-widest uppercase"
+              >
                 Forgot Password?
               </button>
             </div>
