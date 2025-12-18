@@ -11,6 +11,7 @@ import {
   signOut,
   sendEmailVerification
 } from 'firebase/auth';
+import { initializeUser } from '../services/firebaseService';
 
 interface AuthViewProps {
   onGuestLogin: (name?: string) => void;
@@ -70,6 +71,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
+        // Sync user to Firestore just in case they don't have a doc yet
+        await initializeUser(user.uid, user.email || '', user.displayName || '', user.photoURL || '');
+
         if (!user.emailVerified) {
           setPendingEmail(user.email || email);
           setVerificationPending(true);
@@ -81,8 +85,15 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        await updateProfile(user, { displayName: name });
+        // Apply profile updates to Firebase Auth
+        await updateProfile(user, { 
+          displayName: name,
+          photoURL: photoPreview || ''
+        });
         
+        // Sync to Firestore
+        await initializeUser(user.uid, email, name, photoPreview || '');
+
         try {
           await sendEmailVerification(user);
         } catch (vErr) {
@@ -167,7 +178,12 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+      
+      // Sync Google user to Firestore
+      await initializeUser(user.uid, user.email || '', user.displayName || '', user.photoURL || '');
+      
     } catch (err: any) {
       console.error("Google Login Error:", err);
       setShowMockGoogle(true);
