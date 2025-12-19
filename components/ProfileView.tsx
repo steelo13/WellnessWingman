@@ -8,8 +8,10 @@ import { updateProfileInDb, deleteUserAccount } from '../services/firebaseServic
 interface ProfileViewProps {
   user: User | null;
   guestName: string;
+  guestPhotoURL: string;
   isPremium: boolean;
   onUpdateGuestName: (name: string) => void;
+  onUpdateGuestPhoto: (url: string) => void;
   onClose: () => void;
   onUpgrade: () => void;
   entries: FoodEntry[];
@@ -21,8 +23,10 @@ interface ProfileViewProps {
 const ProfileView: React.FC<ProfileViewProps> = ({ 
   user, 
   guestName, 
+  guestPhotoURL,
   isPremium, 
   onUpdateGuestName, 
+  onUpdateGuestPhoto,
   onClose, 
   onUpgrade,
   entries, 
@@ -31,7 +35,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   waterStreak 
 }) => {
   const [name, setName] = useState(user?.displayName || guestName);
-  const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
+  const [photoURL, setPhotoURL] = useState(user?.photoURL || guestPhotoURL || '');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -42,8 +46,11 @@ const ProfileView: React.FC<ProfileViewProps> = ({
     if (user) {
       setName(user.displayName || '');
       setPhotoURL(user.photoURL || '');
+    } else {
+      setName(guestName);
+      setPhotoURL(guestPhotoURL);
     }
-  }, [user]);
+  }, [user, guestName, guestPhotoURL]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -59,6 +66,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       }
     } else {
       onUpdateGuestName(name);
+      onUpdateGuestPhoto(photoURL);
     }
     setIsEditing(false);
     setLoading(false);
@@ -135,7 +143,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                 autoFocus
               />
               <div className="flex gap-2">
-                <button onClick={() => { setIsEditing(false); setName(user?.displayName || guestName); setPhotoURL(user?.photoURL || ''); }} className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-100 rounded-xl transition">Cancel</button>
+                <button onClick={() => { setIsEditing(false); if (user) { setName(user.displayName || ''); setPhotoURL(user.photoURL || ''); } else { setName(guestName); setPhotoURL(guestPhotoURL); } }} className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-100 rounded-xl transition">Cancel</button>
                 <button onClick={handleSave} disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black shadow-lg shadow-blue-100 active:scale-95 transition">
                   {loading ? 'Saving...' : 'Save Changes'}
                 </button>

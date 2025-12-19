@@ -11,9 +11,10 @@ interface MoreTabProps {
   user: User | null;
   isPremium: boolean;
   guestName: string;
+  guestPhotoURL: string;
 }
 
-const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs, onLogout, user, isPremium, guestName }) => {
+const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNetCarbs, onLogout, user, isPremium, guestName, guestPhotoURL }) => {
   const menuItems = [
     { id: 'favorites', label: 'Saved Favorites', icon: Icons.Star(), description: 'Your collection of loved recipes', color: 'text-yellow-500', bg: 'bg-yellow-50' },
     { id: 'vision', label: 'Log with AI Vision', icon: Icons.Camera(), description: 'Identify foods and macros from a photo', color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -27,7 +28,7 @@ const MoreTab: React.FC<MoreTabProps> = ({ onSelect, isNetCarbsMode, onToggleNet
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || guestName;
   const displayEmail = user?.email || "Guest Account";
-  const avatarUrl = user?.photoURL || `https://placehold.co/120x120/0066FF/ffffff?text=${displayName[0].toUpperCase()}`;
+  const avatarUrl = user?.photoURL || guestPhotoURL || `https://placehold.co/120x120/0066FF/ffffff?text=${displayName[0].toUpperCase()}`;
 
   return (
     <div className="pb-24 pt-6 px-4 space-y-6">

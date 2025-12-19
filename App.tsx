@@ -43,6 +43,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
   const [guestName, setGuestName] = useState('Guest User');
+  const [guestPhotoURL, setGuestPhotoURL] = useState('');
 
   // App State
   const [activeView, setActiveView] = useState<AppView>(AppView.DASHBOARD);
@@ -203,6 +204,7 @@ const App: React.FC = () => {
     setUser(null);
     setIsGuest(false);
     setGuestName('Guest User');
+    setGuestPhotoURL('');
     setActiveView(AppView.DASHBOARD);
   };
 
@@ -830,8 +832,10 @@ const App: React.FC = () => {
             <ProfileView 
               user={user} 
               guestName={guestName} 
+              guestPhotoURL={guestPhotoURL}
               isPremium={isPremium} 
               onUpdateGuestName={setGuestName} 
+              onUpdateGuestPhoto={setGuestPhotoURL}
               onClose={() => setMoreSubView('menu')}
               onUpgrade={() => setShowPremiumModal(true)}
               entries={entries}
@@ -846,6 +850,7 @@ const App: React.FC = () => {
             user={user}
             isPremium={isPremium}
             guestName={guestName}
+            guestPhotoURL={guestPhotoURL}
             isNetCarbsMode={isNetCarbsMode}
             onToggleNetCarbs={toggleNetCarbs}
             onLogout={handleLogout}
@@ -890,7 +895,7 @@ const App: React.FC = () => {
           {!isPremium && (
             <button onClick={() => setShowPremiumModal(true)} className="bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-200 shadow-sm">UPGRADE</button>
           )}
-          <img src={user?.photoURL || "https://placehold.co/80x80/0066FF/ffffff?text=WW"} alt="WellnessWingman Logo" className="h-10 w-10 object-contain rounded-lg" />
+          <img src={user?.photoURL || guestPhotoURL || "https://placehold.co/80x80/0066FF/ffffff?text=WW"} alt="WellnessWingman Logo" className="h-10 w-10 object-contain rounded-lg" />
         </div>
       </header>
 
