@@ -71,7 +71,6 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        // Sync user to Firestore just in case they don't have a doc yet
         await initializeUser(user.uid, user.email || '', user.displayName || '', user.photoURL || '');
 
         if (!user.emailVerified) {
@@ -85,13 +84,11 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Apply profile updates to Firebase Auth
         await updateProfile(user, { 
           displayName: name,
           photoURL: photoPreview || ''
         });
         
-        // Sync to Firestore
         await initializeUser(user.uid, email, name, photoPreview || '');
 
         try {
@@ -177,18 +174,24 @@ const AuthView: React.FC<AuthViewProps> = ({ onGuestLogin }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
+      // Using standard Firebase Popup flow
       const userCredential = await signInWithPopup(auth, provider);
       const user = userCredential.user;
       
-      // Sync Google user to Firestore
+      // Ensure Google user is initialized in Firestore
       await initializeUser(user.uid, user.email || '', user.displayName || '', user.photoURL || '');
       
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      setShowMockGoogle(true);
+      // Fallback for restricted environments where popups are blocked by platform
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment') {
+        setShowMockGoogle(true);
+      } else if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message || "Google Authentication failed.");
+      }
+    } finally {
       setLoading(false);
-    } 
+    }
   };
 
   const handleMockSelect = (mockName: string) => {
