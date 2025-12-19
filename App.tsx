@@ -38,12 +38,12 @@ const QUICK_FOODS = [
 ];
 
 const App: React.FC = () => {
-  // Auth State
+  // Auth State with Persistence for Guests
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
-  const [guestName, setGuestName] = useState('Guest User');
-  const [guestPhotoURL, setGuestPhotoURL] = useState('');
+  const [isGuest, setIsGuest] = useState(() => localStorage.getItem('ww_is_guest') === 'true');
+  const [guestName, setGuestName] = useState(() => localStorage.getItem('ww_guest_name') || 'Guest User');
+  const [guestPhotoURL, setGuestPhotoURL] = useState(() => localStorage.getItem('ww_guest_photo') || '');
 
   // App State
   const [activeView, setActiveView] = useState<AppView>(AppView.DASHBOARD);
@@ -100,6 +100,26 @@ const App: React.FC = () => {
   // Step detection refs
   const lastStepTime = useRef(0);
 
+  // Guest Profile Update Handlers with Persistence
+  const handleUpdateGuestName = (name: string) => {
+    setGuestName(name);
+    localStorage.setItem('ww_guest_name', name);
+  };
+
+  const handleUpdateGuestPhoto = (url: string) => {
+    setGuestPhotoURL(url);
+    localStorage.setItem('ww_guest_photo', url);
+  };
+
+  const handleGuestLogin = (name?: string) => {
+    setIsGuest(true);
+    localStorage.setItem('ww_is_guest', 'true');
+    if (name) {
+      handleUpdateGuestName(name);
+    }
+    setAuthLoading(false);
+  };
+
   // Define handleMotion via useCallback so it can be added/removed reliably
   const handleMotion = useCallback((event: any) => {
     // accelerationIncludingGravity provides the most reliable step data across devices
@@ -151,9 +171,6 @@ const App: React.FC = () => {
     try {
       unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         // --- EMAIL VERIFICATION CHECK ---
-        // If a user exists but hasn't verified their email, we DON'T log them in at the app level.
-        // The only exception is Google/Social login which is usually verified, but we trust AuthView
-        // to have handled the forced signOut if they were unverified.
         if (currentUser && !currentUser.emailVerified && !isGuest) {
           setUser(null);
           setAuthLoading(false);
@@ -162,6 +179,10 @@ const App: React.FC = () => {
 
         setUser(currentUser);
         if (currentUser) {
+          // If logged in, we are no longer in guest mode
+          setIsGuest(false);
+          localStorage.removeItem('ww_is_guest');
+          
           // Fetch User Data from Firebase
           try {
             const data = await fetchUserData(currentUser.uid);
@@ -205,6 +226,9 @@ const App: React.FC = () => {
     setIsGuest(false);
     setGuestName('Guest User');
     setGuestPhotoURL('');
+    localStorage.removeItem('ww_is_guest');
+    localStorage.removeItem('ww_guest_name');
+    localStorage.removeItem('ww_guest_photo');
     setActiveView(AppView.DASHBOARD);
   };
 
@@ -834,8 +858,8 @@ const App: React.FC = () => {
               guestName={guestName} 
               guestPhotoURL={guestPhotoURL}
               isPremium={isPremium} 
-              onUpdateGuestName={setGuestName} 
-              onUpdateGuestPhoto={setGuestPhotoURL}
+              onUpdateGuestName={handleUpdateGuestName} 
+              onUpdateGuestPhoto={handleUpdateGuestPhoto}
               onClose={() => setMoreSubView('menu')}
               onUpgrade={() => setShowPremiumModal(true)}
               entries={entries}
@@ -881,7 +905,7 @@ const App: React.FC = () => {
   }
 
   if (!user && !isGuest) {
-    return <AuthView onGuestLogin={(name) => { setIsGuest(true); if(name) setGuestName(name); setAuthLoading(false); }} />;
+    return <AuthView onGuestLogin={handleGuestLogin} />;
   }
 
   return (
